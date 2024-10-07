@@ -1,9 +1,8 @@
 # %%
 import pandas as pd 
 import numpy as np
-import matplotlib.pyplot as plt
 
-def loadData(path, nrows=None):
+def loadData(path):
     return pd.read_csv(path)
 
 def split_data(df):
@@ -32,15 +31,20 @@ def split_data(df):
     
     return train_set, test_set
 
-#Path to the file from which the data is loaded
-pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
-#Path to the folder where the data is saved
-pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
-#Number of splits. keep in mind that it could take a while to split the data 5 min per split
-numberOfSplits = 5
+#sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv
+#sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
+
+def get_user_input():
+    pathFrom = input("Enter the path to the file from which the data is loaded: ")
+    pathTo = input("Enter the path to the folder where the data is saved: ")
+    numberOfSplits = int(input("Enter the number of splits 1 split = 8 min runtime: "))
+    return pathFrom, pathTo, numberOfSplits
+
+# Get user input
+pathFrom, pathTo, numberOfSplits = get_user_input()
 
 print("Loading data from: ", pathFrom)
-dataLondonUTD19 = loadData(path=pathFrom, nrows=1000000)
+dataLondonUTD19 = loadData(path=pathFrom)
 dataframeLondonUTD19 = pd.DataFrame(dataLondonUTD19)
 print("Data loaded")
 print("Splitting data into ", numberOfSplits, " splits")
