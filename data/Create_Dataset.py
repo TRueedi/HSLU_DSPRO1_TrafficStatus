@@ -1,15 +1,43 @@
 import pandas as pd 
-
-
-
+from datetime import timedelta
+import time
 
 def loadData(path, nrows=None):
+    """
+    Loads data from a CSV file into a pandas DataFrame.
+
+    This function reads data from the specified CSV file path and returns it as a pandas DataFrame.
+    Optionally, a specific number of rows can be read from the file.
+
+    Parameters:
+    path (str): The path to the CSV file.
+    nrows (int, optional): The number of rows to read from the file. If None, all rows are read. Default is None.
+
+    Returns:
+    pandas.DataFrame: The DataFrame containing the loaded data.
+    """
     return pd.read_csv(path, nrows=nrows)
 
 def get_user_input():
-    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv
-    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv
-    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
+    """
+    Prompts the user to input file paths for loading and saving data.
+
+    This function prompts the user to enter three file paths:
+    1. The path to the file from which the data is loaded.
+    2. The path to the file from which the detectors data is loaded.
+    3. The path to where the file should be saved.
+
+    Example paths:
+    - C:\\Users\\samue\\OneDrive\\AIML\\HS2024\\Data Sicence Projekt\\Data\\London_UTD19.csv
+    - C:\\Users\\samue\\OneDrive\\AIML\\HS2024\\Data Sicence Projekt\\Data\\London_detectors.csv
+    - C:\\Users\\samue\\OneDrive\\AIML\\HS2024\\Data Sicence Projekt\\Data
+
+    Returns:
+    tuple: A tuple containing three strings:
+        - pathFrom (str): The path to the file from which the data is loaded.
+        - pathDetectors (str): The path to the file from which the detectors data is loaded.
+        - pathTo (str): The path to where the file should be saved.
+    """
     #pathFrom = input("Enter the path to the file from which the data is loaded: ")
     #pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
     #pathTo = input("Enter the path to where the file should be saved is saved: ")
@@ -19,6 +47,18 @@ def get_user_input():
     return pathFrom, pathTo, pathDetectors
 
 def preprocess_dataframe(df):
+    """
+    Preprocesses the input DataFrame by performing the following operations:
+    1. Drops the 'error' and 'speed' columns.
+    2. Converts the 'day' column to datetime format.
+    3. Adds a new column 'weekday' with the day of the week.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing the data.
+
+    Returns:
+    pandas.DataFrame: The preprocessed DataFrame.
+    """
     # Drop the error and speed columns
     df = df.drop(["error", "speed"], axis=1)
     
@@ -29,12 +69,40 @@ def preprocess_dataframe(df):
     return df
 
 def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_column='traffic'):
-    # Calculate the traffic column using the formula speed = flow / occupancy
+    """
+    Calculates the traffic speed and adds it as a new column to the DataFrame.
+
+    This function calculates the traffic speed using the formula speed = flow * occupancy
+    and adds the result as a new column to the DataFrame.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing the data.
+    flow_column (str): The name of the column representing the flow. Default is 'flow'.
+    occ_column (str): The name of the column representing the occupancy. Default is 'occ'.
+    traffic_column (str): The name of the new column to store the calculated traffic speed. Default is 'traffic'.
+
+    Returns:
+    pandas.DataFrame: The DataFrame with the new traffic speed column added.
+    """
     df[traffic_column] = df[flow_column] * df[occ_column]
     return df
 
 # Calculate the mean traffic in n intervals
 def calculate_mean_in_intervals(group, column, num_intervals):
+    """
+    Calculates the mean values of the specified column in the group DataFrame divided into intervals.
+
+    This function divides the data in the specified column into a given number of intervals and calculates
+    the mean value for each interval.
+
+    Parameters:
+    group (pandas.DataFrame): The input group DataFrame containing the data.
+    column (str): The name of the column to calculate mean values for.
+    num_intervals (int): The number of intervals to divide the data into.
+
+    Returns:
+    list: A list of mean values for each interval.
+    """
     interval_size = len(group) // num_intervals
     means = []
     
@@ -48,6 +116,22 @@ def calculate_mean_in_intervals(group, column, num_intervals):
 
 # Clip outliers in a group
 def clip_group(group, column, outlier_factor, num_intervals):
+    """
+    Clips outliers in the specified column of the group DataFrame.
+
+    This function calculates the interquartile range (IQR) to determine outliers in the specified column.
+    Outliers are replaced with the mean value of their respective interval. The data is divided into
+    a specified number of intervals, and the mean value for each interval is calculated.
+
+    Parameters:
+    group (pandas.DataFrame): The input group DataFrame containing the data.
+    column (str): The name of the column to process for outliers.
+    outlier_factor (float): The factor used to determine the bounds for clipping outliers.
+    num_intervals (int): The number of intervals to divide the data into for calculating mean values.
+
+    Returns:
+    pandas.DataFrame: The group DataFrame with outliers clipped.
+    """
     Q1 = group[column].quantile(0.25)
     Q3 = group[column].quantile(0.75)
     IQR = Q3 - Q1
@@ -70,6 +154,23 @@ def clip_group(group, column, outlier_factor, num_intervals):
 
 #Clip functions to remove outliers for every detector
 def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_intervals=24):
+    """
+    Clips outliers in the specified column of the DataFrame.
+
+    This function can optionally group the DataFrame by 'detid' before clipping outliers.
+    Outliers are determined based on the interquartile range (IQR) and replaced with the mean value
+    of their respective interval.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing the data.
+    column (str): The name of the column to process for outliers.
+    group_by_detid (bool): If True, the DataFrame is grouped by 'detid' before processing.
+    outlier_factor (float): The factor used to determine the bounds for clipping outliers.
+    num_intervals (int): The number of intervals to divide the data into for calculating mean values.
+
+    Returns:
+    pandas.DataFrame: The DataFrame with outliers clipped.
+    """
     if group_by_detid:
         df = df.groupby('detid').apply(clip_group, column, outlier_factor, num_intervals)
         # reset the index to avoid issues with the groupby operation
@@ -197,33 +298,62 @@ def export_modified_dataset(df, path):
     """
     df.to_csv(f"{path}\\London_UTD19_Modified.csv", index=False)
 #-------------------------Main-------------------------------------
-print("Strting script")
+print("Starting script")
 pathFrom, pathTo, pathDetectors = get_user_input()
+start_time = time.time()
+
 print("Loading data from: ", pathFrom)
-dataframeLondonUTD19 = pd.DataFrame(loadData(path=pathFrom, nrows=1000000))
+dataframeLondonUTD19 = pd.DataFrame(loadData(path=pathFrom, nrows=None))
 print("Loading data from: ", pathDetectors)
 dataframeDetectors = pd.DataFrame(loadData(path=pathDetectors))
 print("Data loaded")
+
 print("Preprocessing data")
+preprocess_start = time.time()
 dataframeLondonUTD19 = preprocess_dataframe(dataframeLondonUTD19)
+print(f"Preprocessing data took {round(time.time() - preprocess_start)} seconds")
+
 print("Calculating traffic speed")
+traffic_speed_start = time.time()
 dataframeLondonUTD19 = calculate_traffic_speed(dataframeLondonUTD19)
+print(f"Calculating traffic speed took {round(time.time() - traffic_speed_start)} seconds")
+
 print("Clipping outliers")
-print(dataframeLondonUTD19.head())
+clip_outliers_start = time.time()
 dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=True)
-print(dataframeLondonUTD19.head())
 dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=False, outlier_factor=2.5)
-print(dataframeLondonUTD19.head())
+print(f"Clipping outliers took {round(time.time() - clip_outliers_start)} seconds")
+
 print("Detecting anomalies")
+detect_anomalies_start = time.time()
 dataframeLondonUTD19 = detect_anomalies(dataframeLondonUTD19)
+print(f"Detecting anomalies took {round(time.time() - detect_anomalies_start)} seconds")
+
 print("Merging dataframes")
+merge_dataframes_start = time.time()
 dataframeLondonUTD19 = merge_dataframes_on_detid(dataframeLondonUTD19, dataframeDetectors)
+print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
+
 print("Normalizing traffic by lanes")
+normalize_traffic_by_lanes_start = time.time()
 dataframeLondonUTD19 = normalize_traffic_by_lanes(dataframeLondonUTD19)
+print(f"Normalizing traffic by lanes took {round(time.time() - normalize_traffic_by_lanes_start)} seconds")
+
 print("Normalizing traffic")
+normalize_traffic_start = time.time()
 dataframeLondonUTD19 = normalize_traffic(dataframeLondonUTD19)
+print(f"Normalizing traffic took {round(time.time() - normalize_traffic_start)} seconds")
+
 print("Final processing")
+final_process_start = time.time()
 dataframeLondonUTD19 = final_process_dataframe(dataframeLondonUTD19)
+print(f"Final processing took {round(time.time() - final_process_start)} seconds")
+
 print("Exporting modified dataset to: ", pathTo)
+export_start = time.time()
 export_modified_dataset(dataframeLondonUTD19, pathTo)
+print(f"Exporting modified dataset took {round(time.time() - export_start)} seconds")
+
+total_time = time.time() - start_time
 print("Script finished")
+print(f"Total script execution time: {round(total_time)} seconds")
