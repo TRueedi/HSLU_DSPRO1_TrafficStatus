@@ -1,11 +1,6 @@
 import pandas as pd 
 
 
-# Load the data form seperate dictionary, because the data is too big to load onto github
-
-dataLondonUTD19 = loadData(path=pathFrom, nrows=None)
-
-dataframeLondonUTD19 = pd.DataFrame(dataLondonUTD19)
 
 
 def loadData(path, nrows=None):
@@ -13,10 +8,14 @@ def loadData(path, nrows=None):
 
 def get_user_input():
     # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv
-    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19_Modified.csv
-    pathFrom = input("Enter the path to the file from which the data is loaded: ")
-    pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
-    pathTo = input("Enter the path to where the file should be saved is saved: ")
+    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv
+    # Example path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
+    #pathFrom = input("Enter the path to the file from which the data is loaded: ")
+    #pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
+    #pathTo = input("Enter the path to where the file should be saved is saved: ")
+    pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
+    pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv"
+    pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
     return pathFrom, pathTo, pathDetectors
 
 def preprocess_dataframe(df):
@@ -93,18 +92,19 @@ def detect_anomalies(df):
     numpy.ndarray: An array of unique 'detid' values where anomalies are detected.
     """
     
-    df = df.groupby('detid')['traffic'].mean().reset_index()
-    Q1 = df['traffic'].quantile(0.25)
-    Q3 = df['traffic'].quantile(0.75)
+    tempDf = df.groupby('detid')['traffic'].mean().reset_index()
+    Q1 = tempDf['traffic'].quantile(0.25)
+    Q3 = tempDf['traffic'].quantile(0.75)
     IQR = Q3 - Q1
     lower_bound = Q1 - 3 * IQR
     upper_bound = Q3 + 3 * IQR
     
     # Identify anomalies
-    anomalies = df[(df['traffic'] < lower_bound) | (df['traffic'] > upper_bound)]
+    anomalies = tempDf[(tempDf['traffic'] < lower_bound) | (tempDf['traffic'] > upper_bound)]
     
-    # Return unique detid values where anomalies are detected
-    return anomalies['detid'].unique()
+    anomalous_detids = anomalies['detid'].unique()
+    df = df[~df['detid'].isin(anomalous_detids)]
+    return df
 
 def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='lanes'):
     """
@@ -128,7 +128,7 @@ def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='la
     merged_df = df1.merge(df2[[merge_column, include_column]], on=merge_column, how='left')
     return merged_df
 
-def normalize_traffic_by_lanes(df, traffic_column='traffic', lanes_column='lanes', normalized_column='normalized_traffic'):
+def normalize_traffic_by_lanes(df, traffic_column='traffic', lanes_column='lanes', normalized_column='traffic'):
     """
     Normalize the traffic data by dividing it by the number of lanes.
 
@@ -185,7 +185,7 @@ def final_process_dataframe(df):
     
     return df_modified
 
-def export_modified_dataset(df, path = pathTo):
+def export_modified_dataset(df, path):
     """
     Export the modified DataFrame to a CSV file.
 
@@ -194,45 +194,31 @@ def export_modified_dataset(df, path = pathTo):
     path (str): The path to save the CSV file.
     """
     df.to_csv(f"{path}\\London_UTD19_Modified.csv", index=False)
-
-# Filter the DataFrame to clip outliers
-# Clip means setting the values outside the bounds to the bounds
-# This is done to make the data more readable
-dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19,column='traffic', group_by_detid=True)
-
-# Load the detectors data
-dataLondonDetectors = loadData(path=r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv")
-dataframeLondonDetectors = pd.DataFrame(dataLondonDetectors)
-
-# Merge the DataFrames on 'detid' and include only the 'lanes' column from dataframeLondonDetectors
-if 'detid' in dataframeLondonUTD19.index.names:
-    dataframeLondonUTD19 = dataframeLondonUTD19.reset_index(drop=True)
-
-if 'detid' in dataframeLondonDetectors.index.names:
-    dataframeLondonDetectors = dataframeLondonDetectors.reset_index(drop=True)
-
-dataframeLondonUTD19 = dataframeLondonUTD19.merge(dataframeLondonDetectors[['detid', 'lanes']], on='detid', how='left')
-
-dataframeLondonUTD19['traffic'] = dataframeLondonUTD19['traffic'] / dataframeLondonUTD19['lanes']
-
-anomalous_detids = detect_anomalies(dataframeLondonUTD19)
-dataframeLondonUTD19 = dataframeLondonUTD19[~dataframeLondonUTD19['detid'].isin(anomalous_detids)]
-anomalous_detids.size #Todo Print out the number of anomalous detectors
-
-#Check for Outliners in the whole traffic data, not just for one detector
-dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19,column = 'traffic', group_by_detid=False, outlier_factor=2.5)
-
-#Todo make function
-# Map the traffic values to a range between 0 and 99
-min_traffic = dataframeLondonUTD19['traffic'].min()
-max_traffic = dataframeLondonUTD19['traffic'].max()
-
-dataframeLondonUTD19.loc[:,'traffic'] = ((dataframeLondonUTD19['traffic'] - min_traffic) / (max_traffic - min_traffic)) * 99
-
-# Convert the scaled values to integers
-dataframeLondonUTD19.loc[:,'traffic'] = dataframeLondonUTD19['traffic'].fillna(0).astype(int)
-
-dataframeLondonUTD19Modified = dataframeLondonUTD19.drop(["lanes", "occ", "flow", "city"], axis=1)
-
-#Todo make function
-dataframeLondonUTD19Modified.to_csv(r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19_Modified.csv", index=False)
+#-------------------------Main-------------------------------------
+print("Strting script")
+pathFrom, pathTo, pathDetectors = get_user_input()
+print("Loading data from: ", pathFrom)
+dataframeLondonUTD19 = pd.DataFrame(loadData(path=pathFrom, nrows=1000000))
+print("Loading data from: ", pathDetectors)
+dataframeDetectors = pd.DataFrame(loadData(path=pathDetectors))
+print("Data loaded")
+print("Preprocessing data")
+dataframeLondonUTD19 = preprocess_dataframe(dataframeLondonUTD19)
+print("Calculating traffic speed")
+dataframeLondonUTD19 = calculate_traffic_speed(dataframeLondonUTD19)
+print("Clipping outliers")
+dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, 'traffic', group_by_detid=True)
+dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, 'traffic', group_by_detid=False)
+print("Detecting anomalies")
+dataframeLondonUTD19 = detect_anomalies(dataframeLondonUTD19)
+print("Merging dataframes")
+dataframeLondonUTD19 = merge_dataframes_on_detid(dataframeLondonUTD19, dataframeDetectors)
+print("Normalizing traffic by lanes")
+dataframeLondonUTD19 = normalize_traffic_by_lanes(dataframeLondonUTD19)
+print("Normalizing traffic")
+dataframeLondonUTD19 = normalize_traffic(dataframeLondonUTD19)
+print("Final processing")
+dataframeLondonUTD19 = final_process_dataframe(dataframeLondonUTD19)
+print("Exporting modified dataset to: ", pathTo)
+export_modified_dataset(dataframeLondonUTD19, pathTo)
+print("Script finished")
