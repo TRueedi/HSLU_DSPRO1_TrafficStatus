@@ -72,6 +72,8 @@ def clip_group(group, column, outlier_factor, num_intervals):
 def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_intervals=24):
     if group_by_detid:
         df = df.groupby('detid').apply(clip_group, column, outlier_factor, num_intervals)
+        # reset the index to avoid issues with the groupby operation
+        df = df.reset_index(drop=True)
     else:
         df = clip_group(df, column, outlier_factor, num_intervals)
     
@@ -207,8 +209,11 @@ dataframeLondonUTD19 = preprocess_dataframe(dataframeLondonUTD19)
 print("Calculating traffic speed")
 dataframeLondonUTD19 = calculate_traffic_speed(dataframeLondonUTD19)
 print("Clipping outliers")
-dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, 'traffic', group_by_detid=True)
-dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, 'traffic', group_by_detid=False)
+print(dataframeLondonUTD19.head())
+dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=True)
+print(dataframeLondonUTD19.head())
+dataframeLondonUTD19 = clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=False, outlier_factor=2.5)
+print(dataframeLondonUTD19.head())
 print("Detecting anomalies")
 dataframeLondonUTD19 = detect_anomalies(dataframeLondonUTD19)
 print("Merging dataframes")
