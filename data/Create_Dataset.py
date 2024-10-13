@@ -38,12 +38,13 @@ def get_user_input():
         - pathDetectors (str): The path to the file from which the detectors data is loaded.
         - pathTo (str): The path to where the file should be saved.
     """
-    #pathFrom = input("Enter the path to the file from which the data is loaded: ")
-    #pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
-    #pathTo = input("Enter the path to where the file should be saved is saved: ")
-    pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
-    pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv"
-    pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
+    pathFrom = input("Enter the path to the file from which the data is loaded: ")
+    pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
+    pathTo = input("Enter the path to where the file should be saved is saved: ")
+    #Only for testing
+    #pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
+    #pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv"
+    #pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
     return pathFrom, pathTo, pathDetectors
 
 def preprocess_dataframe(df):
@@ -59,10 +60,8 @@ def preprocess_dataframe(df):
     Returns:
     pandas.DataFrame: The preprocessed DataFrame.
     """
-    # Drop the error and speed columns
     df = df.drop(["error", "speed"], axis=1)
-    
-    # Convert 'day' column to datetime and add a new column with the day of the week
+
     df['day'] = pd.to_datetime(df['day'])
     df['weekday'] = df['day'].dt.day_name()
     
@@ -87,7 +86,6 @@ def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_co
     df[traffic_column] = df[flow_column] * df[occ_column]
     return df
 
-# Calculate the mean traffic in n intervals
 def calculate_mean_in_intervals(group, column, num_intervals):
     """
     Calculates the mean values of the specified column in the group DataFrame divided into intervals.
@@ -114,7 +112,6 @@ def calculate_mean_in_intervals(group, column, num_intervals):
     
     return means
 
-# Clip outliers in a group
 def clip_group(group, column, outlier_factor, num_intervals):
     """
     Clips outliers in the specified column of the group DataFrame.
@@ -152,7 +149,6 @@ def clip_group(group, column, outlier_factor, num_intervals):
     group[column] = group.apply(lambda row: get_interval_mean(row.name) if row[column] < lower_bound or row[column] > upper_bound else row[column], axis=1)
     return group
 
-#Clip functions to remove outliers for every detector
 def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_intervals=24):
     """
     Clips outliers in the specified column of the DataFrame.
@@ -180,7 +176,6 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_inte
     
     return df
 
-#Detect anomalies for every detector
 def detect_anomalies(df):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method.
@@ -194,7 +189,6 @@ def detect_anomalies(df):
 
     numpy.ndarray: An array of unique 'detid' values where anomalies are detected.
     """
-    
     tempDf = df.groupby('detid')['traffic'].mean().reset_index()
     Q1 = tempDf['traffic'].quantile(0.25)
     Q3 = tempDf['traffic'].quantile(0.75)
@@ -280,10 +274,8 @@ def final_process_dataframe(df):
     """
     columns_to_drop = ["lanes", "occ", "flow", "city"]
     
-    # Convert the scaled values to integers and fill NaN values with 0
     df.loc[:, 'traffic'] = df['traffic'].fillna(0).astype(int)
     
-    # Drop specified columns
     df_modified = df.drop(columns_to_drop, axis=1)
     
     return df_modified
