@@ -1,5 +1,5 @@
 import pandas as pd 
-import Data_engineering_library as dlib
+import DataEngineeringLibary as dlib
 
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19_Modified.csv
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
