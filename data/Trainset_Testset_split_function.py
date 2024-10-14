@@ -1,3 +1,4 @@
+import os
 import pandas as pd 
 import DataEngineeringLibrary as dlib
 
@@ -48,7 +49,7 @@ def spliter(splittingMethod, dataframeLondonUTD19):
 pathFrom, pathTo, numberOfSplits, splittingMethod = get_user_input()
 
 print("Loading data from: ", pathFrom)
-dataLondonUTD19 = dlib.loadData(path=pathFrom, nrows=1000000)
+dataLondonUTD19 = dlib.loadData(path=pathFrom)
 dataframeLondonUTD19 = pd.DataFrame(dataLondonUTD19)
 print("Data loaded")
 print("Splitting data into ", numberOfSplits, " splits")
@@ -59,8 +60,8 @@ for i in range(numberOfSplits):
     df_test = pd.DataFrame(test_set)
     df_train = pd.DataFrame(train_set)
     print("Saving split ", i, " to: ", pathTo)
-    df_test.to_csv(f"{pathTo}\\London_UTD19_test_{i}.csv", index=False)
-    df_train.to_csv(f"{pathTo}\\London_UTD19_train_{i}.csv", index=False)
+    df_test.to_csv(os.path.join(pathTo, f"London_UTD19_test_{splittingMethod}_{i}.csv"), index=False)
+    df_train.to_csv(os.path.join(pathTo, f"London_UTD19_train_{splittingMethod}_{i}.csv"), index=False)
     print("Split ", i, " done")
 
 print("All splits done")
