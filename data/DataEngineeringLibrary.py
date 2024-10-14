@@ -51,7 +51,7 @@ def splitDataSniper(df, samplesPerDay = 8):
     
     return train_set, test_set
 
-def splitDataDay(df, testDays=5):
+def splitDataDay(df, testDays=1):
     """
     Splits the DataFrame into training and testing sets based on days.
 
