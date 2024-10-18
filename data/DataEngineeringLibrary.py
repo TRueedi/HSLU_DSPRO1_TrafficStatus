@@ -260,25 +260,26 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_inte
     
     return df
 
-def detect_anomalies(df):
+def detect_anomalies(df, factor=3):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
     It then identifies anomalies as those 'detid' values where the mean traffic is outside the range
-    defined by [Q1 - 3*IQR, Q3 + 3*IQR], where Q1 and Q3 are the first and third quartiles of the traffic data.
+    defined by [Q1 - factor*IQR, Q3 + factor*IQR], where Q1 and Q3 are the first and third quartiles of the traffic data.
 
     Parameters:
     df (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and 'traffic'.
-    Returns:
+    factor (float, optional): The multiplier for the IQR to define the bounds for detecting anomalies. Default is 3.
 
-    numpy.ndarray: An array of unique 'detid' values where anomalies are detected.
+    Returns:
+    pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
     """
     tempDf = df.groupby('detid')['traffic'].mean().reset_index()
     Q1 = tempDf['traffic'].quantile(0.25)
     Q3 = tempDf['traffic'].quantile(0.75)
     IQR = Q3 - Q1
-    lower_bound = Q1 - 3 * IQR
-    upper_bound = Q3 + 3 * IQR
+    lower_bound = Q1 - factor * IQR
+    upper_bound = Q3 + factor * IQR
     
     # Identify anomalies
     anomalies = tempDf[(tempDf['traffic'] < lower_bound) | (tempDf['traffic'] > upper_bound)]
