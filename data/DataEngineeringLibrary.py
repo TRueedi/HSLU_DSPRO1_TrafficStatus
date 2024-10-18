@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def loadData(path, nrows=None):
+def loadData(path,skiprows=None, nrows=None):
     """
     Loads data from a CSV file into a pandas DataFrame.
 
@@ -12,7 +12,7 @@ def loadData(path, nrows=None):
     Returns:
     pandas.DataFrame: The DataFrame containing the loaded data.
     """
-    return pd.read_csv(path, nrows=nrows)
+    return pd.read_csv(path, nrows=nrows, skiprows=skiprows)
 
 def splitDataSniper(df, samplesPerDay = 8):
     """
