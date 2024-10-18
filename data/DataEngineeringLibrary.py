@@ -268,7 +268,7 @@ def drop_outliers(df, column, group_by_detid=True, outlier_factor=3):
     Parameters:
     df (pandas.DataFrame): A DataFrame containing traffic data with at least the specified column.
     column (str): The name of the column to check for outliers.
-    group_by_detid (bool, optional): If True, the DataFrame is grouped by 'detid' before removing outliers. Default is False.
+    group_by_detid (bool, optional): If True, the DataFrame is grouped by 'detid' before removing outliers. Default is True.
     outlier_factor (float, optional): The multiplier for the IQR to define the bounds for detecting outliers. Default is 3.
 
     Returns:
@@ -288,13 +288,11 @@ def drop_group(group, column, outlier_factor):
     Removes outliers from a DataFrame group based on the Interquartile Range (IQR) method.
     This function calculates the IQR for the specified column and removes rows where the column value
     is outside the range defined by [Q1 - outlier_factor*IQR, Q3 + outlier_factor*IQR].
-    It then removes all rows with 'detid' values identified as outliers.
 
     Parameters:
     group (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
     column (str): The name of the column to check for outliers.
     outlier_factor (float): The multiplier for the IQR to define the bounds for detecting outliers.
-    num_intervals (int): The number of intervals to consider (not used in the current implementation).
 
     Returns:
     pandas.DataFrame: A DataFrame with the outliers removed.
@@ -309,6 +307,45 @@ def drop_group(group, column, outlier_factor):
     filtered_group = group[(group[column] >= lower_bound) & (group[column] <= upper_bound)]
 
     return group
+
+def dropFalseValues(df, column, outlier_factor=5):
+    """
+    Drops outliers from a DataFrame based on the value counts of a specified column using the Interquartile Range (IQR) method.
+    This function groups the DataFrame by 'detid' before applying the outlier detection and removal process.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    column (str): The name of the column to calculate value counts and identify outliers.
+    outlier_factor (float, optional): The multiplier for the IQR to define the bounds for detecting outliers. Default is 5.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with the outliers removed.
+    """
+    def dropByGroup(group):
+        # Count the occurrences of each unique value in the specified column
+        value_counts = group[column].value_counts().reset_index()
+        value_counts.columns = [column, 'count']
+        
+        # Calculate Q1, Q3, and IQR of the value counts
+        Q1 = value_counts['count'].quantile(0.25)
+        Q3 = value_counts['count'].quantile(0.75)
+        IQR = Q3 - Q1
+        lower_bound = Q1 - outlier_factor * IQR
+        upper_bound = Q3 + outlier_factor * IQR
+        
+        # Identify the outliers
+        outliers = value_counts[(value_counts['count'] < lower_bound) | (value_counts['count'] > upper_bound)]
+        
+        # Drop the outliers from the group
+        filtered_group = group[~group[column].isin(outliers[column])]
+        
+        return filtered_group
+    
+    # Group by 'detid' and apply the drop_group function
+    filtered_df = df.groupby('detid').apply(dropByGroup).reset_index(drop=True)
+    
+    return filtered_df
+
 
 def detect_anomalies(df, factor=3):
     """
