@@ -346,33 +346,106 @@ def dropFalseValues(df, column, outlier_factor=5):
     
     return filtered_df
 
-def detect_anomalies(df, factor=3):
+def detect_anomalies(df, column = 'traffic', factor=3):
     """
-    Detects anomalies in traffic data based on the Interquartile Range (IQR) method.
+    Detects anomalies in traffic data based on the Interquartile Range (IQR) method and other criteria.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
     It then identifies anomalies as those 'detid' values where the mean traffic is outside the range
     defined by [Q1 - factor*IQR, Q3 + factor*IQR], where Q1 and Q3 are the first and third quartiles of the traffic data.
+    Additionally, it identifies anomalies where the IQR is too small or there are not enough data points.
 
     Parameters:
-    df (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and 'traffic'.
+    df (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
+    column (str, optional): The name of the column to calculate the mean and identify anomalies. Default is 'traffic'.
     factor (float, optional): The multiplier for the IQR to define the bounds for detecting anomalies. Default is 3.
 
     Returns:
-    pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
+    tuple: A tuple containing:
+        - pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
+        - numpy.ndarray: An array of 'detid' values identified as anomalies.
     """
-    tempDf = df.groupby('detid')['traffic'].mean().reset_index()
-    Q1 = tempDf['traffic'].quantile(0.25)
-    Q3 = tempDf['traffic'].quantile(0.75)
+    anomalies = anomaliesIQROutOfBound(df, column, factor)
+    anomalies = np.append(anomalies, anomaliesIQRToSmall(df, column))
+    anomalies = np.append(anomalies, anomaliesNotEnoughData(df))
+    df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
+    
+    return df, anomalies
+
+def anomaliesIQROutOfBound(df, column, factor=3):
+    """
+    Identifies anomalies in a DataFrame based on the Interquartile Range (IQR) method.
+    This function groups the DataFrame by 'detid' and calculates the mean of the specified column.
+    It then identifies anomalies as those 'detid' values where the mean value is outside the range
+    defined by [Q1 - factor*IQR, Q3 + factor*IQR], where Q1 and Q3 are the first and third quartiles of the data.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    column (str): The name of the column to calculate the mean and identify anomalies.
+    factor (float, optional): The multiplier for the IQR to define the bounds for detecting anomalies. Default is 3.
+
+    Returns:
+    numpy.ndarray: An array containing the 'detid' values identified as anomalies.
+    """
+    # Group by 'detid' and calculate the mean of the specified column
+    tempDf = df.groupby('detid')[column].mean().reset_index()
+    
+    # Calculate Q1, Q3, and IQR
+    Q1 = tempDf[column].quantile(0.25)
+    Q3 = tempDf[column].quantile(0.75)
     IQR = Q3 - Q1
     lower_bound = Q1 - factor * IQR
     upper_bound = Q3 + factor * IQR
     
     # Identify anomalies
-    anomalies = tempDf[(tempDf['traffic'] < lower_bound) | (tempDf['traffic'] > upper_bound)]
+    tempDf = tempDf[(tempDf[column] < lower_bound) | (tempDf[column] > upper_bound)]
+    anomalies = tempDf['detid'].unique()
+    print(f"Anomalies detected based on IQR: {anomalies.size}")
+
+    return anomalies
+
+def anomaliesIQRToSmall(df, column='traffic', threshold=5):
+    """
+    Identifies 'detid' values in a DataFrame where the Interquartile Range (IQR) of the specified column is below a given threshold.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    column (str, optional): The name of the column to calculate the IQR. Default is 'traffic'.
+    threshold (float, optional): The IQR threshold to check against. Default is 5.
+
+    Returns:
+    numpy.ndarray: An array containing the 'detid' values with IQR below the specified threshold.
+    """
+    tempDf = df.groupby('detid')[column].mean().reset_index()
     
-    anomalous_detids = anomalies['detid'].unique()
-    df = df[~df['detid'].isin(anomalous_detids)]
-    return df
+    def calculate_iqr(group):
+        Q1 = group[column].quantile(0.25)
+        Q3 = group[column].quantile(0.75)
+        IQR = Q3 - Q1
+        return IQR
+    
+    iqr_values = df.groupby('detid').apply(calculate_iqr).reset_index(name='IQR')
+    anomalies = iqr_values[iqr_values['IQR'] < threshold]['detid'].unique()
+    print(f"Anomalies detected based on IQR too small: {anomalies.size}")
+
+    return anomalies
+
+def anomaliesNotEnoughData(df, column='detid', threshold=5000):
+    """
+    Identifies 'detid' values in a DataFrame that have more than a specified number of data points.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    column (str, optional): The name of the column representing 'detid'. Default is 'detid'.
+    threshold (int, optional): The number of data points to check against. Default is 5000.
+
+    Returns:
+    numpy.ndarray: An array containing 'detid' values with more than the specified number of data points.
+    """
+    detid_counts = df.groupby(column).size().reset_index(name='count')
+    anomalies = detid_counts[detid_counts['count'] > threshold][column].unique()
+    print(f"Anomalies detected based on not enough data: {anomalies.size}")
+    
+    return anomalies
 
 def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='lanes'):
     """
