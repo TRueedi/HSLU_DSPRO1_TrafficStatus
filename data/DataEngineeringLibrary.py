@@ -346,7 +346,7 @@ def dropFalseValues(df, column, outlier_factor=5):
     
     return filtered_df
 
-def detect_anomalies(df, column = 'traffic', factor=3):
+def detect_anomalies(df, column = 'traffic', factor=3, minIQR=5, minDataPoints=5000):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method and other criteria.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
@@ -358,6 +358,8 @@ def detect_anomalies(df, column = 'traffic', factor=3):
     df (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
     column (str, optional): The name of the column to calculate the mean and identify anomalies. Default is 'traffic'.
     factor (float, optional): The multiplier for the IQR to define the bounds for detecting anomalies. Default is 3.
+    minIQR (float, optional): The minimum IQR threshold to identify anomalies. Default is 5.
+    minDataPoints (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
 
     Returns:
     tuple: A tuple containing:
@@ -365,8 +367,9 @@ def detect_anomalies(df, column = 'traffic', factor=3):
         - numpy.ndarray: An array of 'detid' values identified as anomalies.
     """
     anomalies = anomaliesIQROutOfBound(df, column, factor)
-    anomalies = np.append(anomalies, anomaliesIQRToSmall(df, column))
-    anomalies = np.append(anomalies, anomaliesNotEnoughData(df))
+    anomalies = np.append(anomalies, anomaliesIQRToSmall(df, column, minIQR=minIQR))
+    anomalies = np.append(anomalies, anomaliesNotEnoughData(df, minDataPoints=minDataPoints))
+    anomalies = np.unique(anomalies)
     df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
     
     return df, anomalies
@@ -403,14 +406,14 @@ def anomaliesIQROutOfBound(df, column, factor=3):
 
     return anomalies
 
-def anomaliesIQRToSmall(df, column='traffic', threshold=5):
+def anomaliesIQRToSmall(df, column='traffic', minIQR=5):
     """
     Identifies 'detid' values in a DataFrame where the Interquartile Range (IQR) of the specified column is below a given threshold.
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
     column (str, optional): The name of the column to calculate the IQR. Default is 'traffic'.
-    threshold (float, optional): The IQR threshold to check against. Default is 5.
+    minIQR (float, optional): The IQR threshold to check against. Default is 5.
 
     Returns:
     numpy.ndarray: An array containing the 'detid' values with IQR below the specified threshold.
@@ -424,25 +427,25 @@ def anomaliesIQRToSmall(df, column='traffic', threshold=5):
         return IQR
     
     iqr_values = df.groupby('detid').apply(calculate_iqr).reset_index(name='IQR')
-    anomalies = iqr_values[iqr_values['IQR'] < threshold]['detid'].unique()
+    anomalies = iqr_values[iqr_values['IQR'] < minIQR]['detid'].unique()
     print(f"Anomalies detected based on IQR too small: {anomalies.size}")
 
     return anomalies
 
-def anomaliesNotEnoughData(df, column='detid', threshold=5000):
+def anomaliesNotEnoughData(df, column='detid', minDataPoints=5000):
     """
-    Identifies 'detid' values in a DataFrame that have more than a specified number of data points.
+    Identifies 'detid' values in a DataFrame that have fewer than a specified number of data points.
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
     column (str, optional): The name of the column representing 'detid'. Default is 'detid'.
-    threshold (int, optional): The number of data points to check against. Default is 5000.
+    minDataPoints (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
 
     Returns:
-    numpy.ndarray: An array containing 'detid' values with more than the specified number of data points.
+    numpy.ndarray: An array containing 'detid' values with fewer than the specified number of data points.
     """
     detid_counts = df.groupby(column).size().reset_index(name='count')
-    anomalies = detid_counts[detid_counts['count'] > threshold][column].unique()
+    anomalies = detid_counts[detid_counts['count'] < minDataPoints][column].unique()
     print(f"Anomalies detected based on not enough data: {anomalies.size}")
     
     return anomalies
