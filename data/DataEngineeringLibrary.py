@@ -260,7 +260,7 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_inte
     
     return df
 
-def drop_outliers(df, column, group_by_detid=False, outlier_factor=3):
+def drop_outliers(df, column, group_by_detid=True, outlier_factor=3):
     """
     Removes outliers from a DataFrame based on the Interquartile Range (IQR) method.
     This function can optionally group the DataFrame by 'detid' before removing outliers.
