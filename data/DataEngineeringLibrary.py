@@ -260,6 +260,56 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_inte
     
     return df
 
+def drop_outliers(df, column, group_by_detid=False, outlier_factor=3):
+    """
+    Removes outliers from a DataFrame based on the Interquartile Range (IQR) method.
+    This function can optionally group the DataFrame by 'detid' before removing outliers.
+
+    Parameters:
+    df (pandas.DataFrame): A DataFrame containing traffic data with at least the specified column.
+    column (str): The name of the column to check for outliers.
+    group_by_detid (bool, optional): If True, the DataFrame is grouped by 'detid' before removing outliers. Default is False.
+    outlier_factor (float, optional): The multiplier for the IQR to define the bounds for detecting outliers. Default is 3.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with the outliers removed.
+    """
+    if group_by_detid:
+        df = df.groupby('detid').apply(drop_group, column, outlier_factor)
+        # reset the index to avoid issues with the groupby operation
+        df = df.reset_index(drop=True)
+    else:
+        df = drop_group(df, column, outlier_factor)
+    
+    return df
+
+def drop_group(group, column, outlier_factor):
+    """
+    Removes outliers from a DataFrame group based on the Interquartile Range (IQR) method.
+    This function calculates the IQR for the specified column and removes rows where the column value
+    is outside the range defined by [Q1 - outlier_factor*IQR, Q3 + outlier_factor*IQR].
+    It then removes all rows with 'detid' values identified as outliers.
+
+    Parameters:
+    group (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
+    column (str): The name of the column to check for outliers.
+    outlier_factor (float): The multiplier for the IQR to define the bounds for detecting outliers.
+    num_intervals (int): The number of intervals to consider (not used in the current implementation).
+
+    Returns:
+    pandas.DataFrame: A DataFrame with the outliers removed.
+    """
+    Q1 = group[column].quantile(0.25)
+    Q3 = group[column].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - outlier_factor * IQR
+    upper_bound = Q3 + outlier_factor * IQR
+    
+    # Filter out the outliers
+    filtered_group = group[(group[column] >= lower_bound) & (group[column] <= upper_bound)]
+
+    return group
+
 def detect_anomalies(df, factor=3):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method.
