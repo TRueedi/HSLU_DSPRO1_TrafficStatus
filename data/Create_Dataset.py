@@ -23,13 +23,13 @@ def get_user_input():
         - pathDetectors (str): The path to the file from which the detectors data is loaded.
         - pathTo (str): The path to where the file should be saved.
     """
-    pathFrom = input("Enter the path to the file from which the data is loaded: ")
-    pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
-    pathTo = input("Enter the path to where the file should be saved is saved: ")
+    #pathFrom = input("Enter the path to the file from which the data is loaded: ")
+    #pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
+    #pathTo = input("Enter the path to where the file should be saved is saved: ")
     #Only for testing
-    #pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
-    #pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv"
-    #pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
+    pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19.csv"
+    pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_detectors.csv"
+    pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
     return pathFrom, pathTo, pathDetectors
 
 def export_modified_dataset(df, path):
@@ -79,7 +79,10 @@ print(f"Drop false values took {round(time.time() - drop_false_values_start)} se
 
 print("Detecting anomalies")
 detect_anomalies_start = time.time()
-dataframeLondonUTD19 = dlib.detect_anomalies(dataframeLondonUTD19)
+dataframeLondonUTD19, anomalies = dlib.detect_anomalies(dataframeLondonUTD19, column='traffic', factor=3, minIQR=5, minDataPoints=4000)
+# Convert anomalies to a pandas DataFrame
+anomalies_df = pd.DataFrame(anomalies, columns=['detid'])
+anomalies_df.to_csv(f"{pathTo}\\Anomalies.csv", index=False)
 print(f"Detecting anomalies took {round(time.time() - detect_anomalies_start)} seconds")
 
 print("Merging dataframes")
