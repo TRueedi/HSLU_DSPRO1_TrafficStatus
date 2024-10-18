@@ -62,11 +62,20 @@ traffic_speed_start = time.time()
 dataframeLondonUTD19 = dlib.calculate_traffic_speed(dataframeLondonUTD19)
 print(f"Calculating traffic speed took {round(time.time() - traffic_speed_start)} seconds")
 
+print("Droping outliers")
+drop_outliers_start = time.time()
+dataframeLondonUTD19 = dlib.drop_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=True, outlier_factor=2.5)
+print(f"Droping outliers took {round(time.time() - drop_outliers_start)} seconds")
+
 print("Clipping outliers")
 clip_outliers_start = time.time()
 dataframeLondonUTD19 = dlib.clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=True)
-dataframeLondonUTD19 = dlib.clip_outliers(dataframeLondonUTD19, column='traffic', group_by_detid=False, outlier_factor=2.5)
 print(f"Clipping outliers took {round(time.time() - clip_outliers_start)} seconds")
+
+print("Drop false values")
+drop_false_values_start = time.time()
+dataframeLondonUTD19 = dlib.dropFalseValues(dataframeLondonUTD19, column='traffic', outlier_factor=3)
+print(f"Drop false values took {round(time.time() - drop_false_values_start)} seconds")
 
 print("Detecting anomalies")
 detect_anomalies_start = time.time()

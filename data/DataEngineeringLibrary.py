@@ -346,7 +346,6 @@ def dropFalseValues(df, column, outlier_factor=5):
     
     return filtered_df
 
-
 def detect_anomalies(df, factor=3):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method.
