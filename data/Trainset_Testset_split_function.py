@@ -56,9 +56,9 @@ print("Splitting data into ", numberOfSplits, " splits")
 
 for i in range(numberOfSplits):
     print("Splitting ", i)
-    train_set, test_set = spliter(splittingMethod=splittingMethod, dataframeLondonUTD19=dataframeLondonUTD19)
-    df_test = pd.DataFrame(test_set)
-    df_train = pd.DataFrame(train_set)
+    df_train, df_test = spliter(splittingMethod=splittingMethod, dataframeLondonUTD19=dataframeLondonUTD19)
+    df_train = df_train.drop(columns=['day'])
+    df_test = df_test.drop(columns=['day'])
     print("Saving split ", i, " to: ", pathTo)
     df_test.to_csv(os.path.join(pathTo, f"London_UTD19_test_{splittingMethod}_{i}.csv"), index=False)
     df_train.to_csv(os.path.join(pathTo, f"London_UTD19_train_{splittingMethod}_{i}.csv"), index=False)
