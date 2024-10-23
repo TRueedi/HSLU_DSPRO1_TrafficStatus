@@ -90,11 +90,6 @@ merge_dataframes_start = time.time()
 dataframeLondonUTD19 = dlib.merge_dataframes_on_detid(dataframeLondonUTD19, dataframeDetectors)
 print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
 
-print("Normalizing traffic by lanes")
-normalize_traffic_by_lanes_start = time.time()
-dataframeLondonUTD19 = dlib.normalize_traffic_by_lanes(dataframeLondonUTD19)
-print(f"Normalizing traffic by lanes took {round(time.time() - normalize_traffic_by_lanes_start)} seconds")
-
 print("Normalizing traffic")
 normalize_traffic_start = time.time()
 dataframeLondonUTD19 = dlib.normalize_traffic(dataframeLondonUTD19)
