@@ -450,6 +450,28 @@ def anomaliesNotEnoughData(df, column='detid', minDataPoints=5000):
     
     return anomalies
 
+def combineDatapoints(df, fixedColumns = ['interval', 'day', 'detid', 'weekday'], combineOnColumn = 'interval', meanColumn= 'traffic', ratio=1000):
+    """
+    Combines multiple data points for the same 'detid' into a single data point by taking the mean of the specified column.
+    The 'interval' column is rounded to the nearest specified ratio before combining data points.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    fixedColumns (list, optional): The columns to group by when combining data points. Default is ['interval', 'day', 'detid', 'weekday'].
+    combineOnColumn (str, optional): The name of the column to round and combine data points on. Default is 'interval'.
+    meanColumn (str, optional): The name of the column to calculate the mean for. Default is 'traffic'.
+    ratio (int, optional): The ratio to round the combineOnColumn to. Default is 1000.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with the data points combined by taking the mean of the specified column.
+    """
+    
+    df[combineOnColumn] = (df[combineOnColumn] / ratio).round() * 1000
+
+    df = df.groupby(fixedColumns).mean(meanColumn).reset_index()
+    
+    return df
+
 def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='lanes'):
     """
     Merge two DataFrames on the specified column and include only the specified column from the second DataFrame.
