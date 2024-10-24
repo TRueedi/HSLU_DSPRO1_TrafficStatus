@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def loadData(path,skiprows=None, nrows=None):
+def load_data(path,skip_rows=None, nrows=None):
     """
     Loads data from a CSV file into a pandas DataFrame.
 
@@ -12,9 +12,9 @@ def loadData(path,skiprows=None, nrows=None):
     Returns:
     pandas.DataFrame: The DataFrame containing the loaded data.
     """
-    return pd.read_csv(path, nrows=nrows, skiprows=skiprows)
+    return pd.read_csv(path, nrows=nrows, skiprows=skip_rows)
 
-def splitDataSniper(df, samplesPerDay = 8):
+def split_data_sniper(df, samples_per_day = 8):
     """
     Splits the DataFrame into training and testing sets based on random intervals.
 
@@ -38,7 +38,7 @@ def splitDataSniper(df, samplesPerDay = 8):
 
     for (day, sensor), group in grouped:
         # Randomly select samplesPerDay intervals
-        intervals = np.random.choice(range(288), samplesPerDay, replace=False) * 300
+        intervals = np.random.choice(range(288), samples_per_day, replace=False) * 300
         test_indices = group.index[group['interval'].isin(intervals)]
         
         # Split into test and train sets
@@ -51,7 +51,7 @@ def splitDataSniper(df, samplesPerDay = 8):
     
     return train_set, test_set
 
-def splitDataDay(df, testDays=1):
+def split_data_day(df, number_of_test_days=1):
     """
     Splits the DataFrame into training and testing sets based on days.
 
@@ -76,7 +76,7 @@ def splitDataDay(df, testDays=1):
     for sensor, group in grouped:
         # Randomly select testDays days
         days = group['day'].unique()
-        test_days = np.random.choice(days, testDays, replace=False)
+        test_days = np.random.choice(days, number_of_test_days, replace=False)
         test_indices = group.index[group['day'].isin(test_days)]
         
         # Split into test and train sets
@@ -89,7 +89,7 @@ def splitDataDay(df, testDays=1):
     
     return train_set, test_set
 
-def splitDataWeek(df, testWeeks=1):
+def split_data_week(df, number_of_test_weeks=1):
     """
     Splits the DataFrame into training and testing sets based on weeks.
 
@@ -118,7 +118,7 @@ def splitDataWeek(df, testWeeks=1):
     for sensor, group in grouped:
         # Randomly select testWeeks weeks
         weeks = group['week'].unique()
-        test_weeks = np.random.choice(weeks, testWeeks, replace=False)
+        test_weeks = np.random.choice(weeks, number_of_test_weeks, replace=False)
         test_indices = group.index[group['week'].isin(test_weeks)]
         
         # Split into test and train sets
@@ -308,7 +308,7 @@ def drop_group(group, column, outlier_factor):
 
     return group
 
-def dropFalseValues(df, column, outlier_factor=5):
+def drop_false_values(df, column, outlier_factor=5):
     """
     Drops outliers from a DataFrame based on the value counts of a specified column using the Interquartile Range (IQR) method.
     This function groups the DataFrame by 'detid' before applying the outlier detection and removal process.
@@ -321,7 +321,7 @@ def dropFalseValues(df, column, outlier_factor=5):
     Returns:
     pandas.DataFrame: A DataFrame with the outliers removed.
     """
-    def dropByGroup(group):
+    def drop_by_group(group):
         # Count the occurrences of each unique value in the specified column
         value_counts = group[column].value_counts().reset_index()
         value_counts.columns = [column, 'count']
@@ -342,11 +342,11 @@ def dropFalseValues(df, column, outlier_factor=5):
         return filtered_group
     
     # Group by 'detid' and apply the drop_group function
-    filtered_df = df.groupby('detid').apply(dropByGroup).reset_index(drop=True)
+    filtered_df = df.groupby('detid').apply(drop_by_group).reset_index(drop=True)
     
     return filtered_df
 
-def detect_anomalies(df, column = 'traffic', factor=3, minIQR=5, minDataPoints=5000):
+def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_points=5000):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method and other criteria.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
@@ -366,15 +366,15 @@ def detect_anomalies(df, column = 'traffic', factor=3, minIQR=5, minDataPoints=5
         - pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
         - numpy.ndarray: An array of 'detid' values identified as anomalies.
     """
-    anomalies = anomaliesIQROutOfBound(df, column, factor)
-    anomalies = np.append(anomalies, anomaliesIQRToSmall(df, column, minIQR=minIQR))
-    anomalies = np.append(anomalies, anomaliesNotEnoughData(df, minDataPoints=minDataPoints))
+    anomalies = anomalies_IQR_out_of_bound(df, column, factor)
+    anomalies = np.append(anomalies, anomalies_IQR_to_small(df, column, min_IQR=min_IQR))
+    anomalies = np.append(anomalies, anomalies_not_enough_data(df, min_data_points=min_data_points))
     anomalies = np.unique(anomalies)
     df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
     
     return df, anomalies
 
-def anomaliesIQROutOfBound(df, column, factor=3):
+def anomalies_IQR_out_of_bound(df, column, factor=3):
     """
     Identifies anomalies in a DataFrame based on the Interquartile Range (IQR) method.
     This function groups the DataFrame by 'detid' and calculates the mean of the specified column.
@@ -390,23 +390,23 @@ def anomaliesIQROutOfBound(df, column, factor=3):
     numpy.ndarray: An array containing the 'detid' values identified as anomalies.
     """
     # Group by 'detid' and calculate the mean of the specified column
-    tempDf = df.groupby('detid')[column].mean().reset_index()
+    temp_df = df.groupby('detid')[column].mean().reset_index()
     
     # Calculate Q1, Q3, and IQR
-    Q1 = tempDf[column].quantile(0.25)
-    Q3 = tempDf[column].quantile(0.75)
+    Q1 = temp_df[column].quantile(0.25)
+    Q3 = temp_df[column].quantile(0.75)
     IQR = Q3 - Q1
     lower_bound = Q1 - factor * IQR
     upper_bound = Q3 + factor * IQR
     
     # Identify anomalies
-    tempDf = tempDf[(tempDf[column] < lower_bound) | (tempDf[column] > upper_bound)]
-    anomalies = tempDf['detid'].unique()
+    temp_df = temp_df[(temp_df[column] < lower_bound) | (temp_df[column] > upper_bound)]
+    anomalies = temp_df['detid'].unique()
     print(f"Anomalies detected based on IQR: {anomalies.size}")
 
     return anomalies
 
-def anomaliesIQRToSmall(df, column='traffic', minIQR=5):
+def anomalies_IQR_to_small(df, column='traffic', min_IQR=5):
     """
     Identifies 'detid' values in a DataFrame where the Interquartile Range (IQR) of the specified column is below a given threshold.
 
@@ -418,7 +418,6 @@ def anomaliesIQRToSmall(df, column='traffic', minIQR=5):
     Returns:
     numpy.ndarray: An array containing the 'detid' values with IQR below the specified threshold.
     """
-    tempDf = df.groupby('detid')[column].mean().reset_index()
     
     def calculate_iqr(group):
         Q1 = group[column].quantile(0.25)
@@ -427,12 +426,12 @@ def anomaliesIQRToSmall(df, column='traffic', minIQR=5):
         return IQR
     
     iqr_values = df.groupby('detid').apply(calculate_iqr).reset_index(name='IQR')
-    anomalies = iqr_values[iqr_values['IQR'] < minIQR]['detid'].unique()
+    anomalies = iqr_values[iqr_values['IQR'] < min_IQR]['detid'].unique()
     print(f"Anomalies detected based on IQR too small: {anomalies.size}")
 
     return anomalies
 
-def anomaliesNotEnoughData(df, column='detid', minDataPoints=5000):
+def anomalies_not_enough_data(df, column='detid', min_data_points=5000):
     """
     Identifies 'detid' values in a DataFrame that have fewer than a specified number of data points.
 
@@ -445,12 +444,12 @@ def anomaliesNotEnoughData(df, column='detid', minDataPoints=5000):
     numpy.ndarray: An array containing 'detid' values with fewer than the specified number of data points.
     """
     detid_counts = df.groupby(column).size().reset_index(name='count')
-    anomalies = detid_counts[detid_counts['count'] < minDataPoints][column].unique()
+    anomalies = detid_counts[detid_counts['count'] < min_data_points][column].unique()
     print(f"Anomalies detected based on not enough data: {anomalies.size}")
     
     return anomalies
 
-def combineDatapoints(df, fixedColumns = ['interval', 'day', 'detid', 'weekday'], combineOnColumn = 'interval', meanColumn= 'traffic', ratio=1000):
+def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday'], combine_on_column = 'interval', mean_column= 'traffic', ratio=1000):
     """
     Combines multiple data points for the same 'detid' into a single data point by taking the mean of the specified column.
     The 'interval' column is rounded to the nearest specified ratio before combining data points.
@@ -466,9 +465,9 @@ def combineDatapoints(df, fixedColumns = ['interval', 'day', 'detid', 'weekday']
     pandas.DataFrame: A DataFrame with the data points combined by taking the mean of the specified column.
     """
     
-    df[combineOnColumn] = (df[combineOnColumn] / ratio).round() * 1000
+    df[combine_on_column] = (df[combine_on_column] / ratio).round() * 1000
 
-    df = df.groupby(fixedColumns).mean(meanColumn).reset_index()
+    df = df.groupby(fixed_columns).mean(mean_column).reset_index()
     
     return df
 
