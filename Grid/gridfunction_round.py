@@ -136,16 +136,27 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
     return m
 
 # User input
-path = input("Enter the path with the filename to the sensor data file: ")
-print("Loading data from: ", path)
-df_sensors = pd.read_csv(path)
+htmloutput = input("Enter if you want to save the output as html file (yes/no): ")
 
+path = input("Enter the path with the filename to the sensor data file: ")
+path_london_detectors = input("Enter the path with the filename to the London detectors file: ")
+print("Loading data from: ", path + " and " + path_london_detectors)
+df_sensors = pd.read_csv(path)
+df_detectors = pd.read_csv(path_london_detectors)
+print("Data loaded successfully!")
+
+df_merged = pd.merge(df_sensors, df_detectors, on='detector_id', how='left')
+print("Data merged with Coords successfully!")
 
 
 #sensorid_col, trafficIndex_col = input("Enter the column names for sensor ids (standard = detid) and traffic indices (standard = traffic) separated by a comma: ").split(',')
 
-grid_data = grid(df_sensors, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
+grid_data = grid(df_merged, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
 
 
 map_with_rectangles = plot_grid_with_shapes(grid_data, shape='rectangle', city_center=(51.550, -0.021), zoom_start=15)
-#map_with_rectangles.save('london_grid_rectangles.html')
+
+if htmloutput == 'yes':
+    map_with_rectangles.save('london_grid_rectangles.html')
+else:
+    map_with_rectangles
