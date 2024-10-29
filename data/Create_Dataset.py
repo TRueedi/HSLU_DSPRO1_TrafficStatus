@@ -1,7 +1,7 @@
 import pandas as pd 
 from datetime import timedelta
 import time
-import data.data_engineering_library as dlib
+import data_engineering_library as dlib
 
 def get_user_input():
     """
@@ -74,23 +74,23 @@ print(f"Clipping outliers took {round(time.time() - clip_outliers_start)} second
 
 print("Drop false values")
 drop_false_values_start = time.time()
-dataframe_London_UTD19 = dlib.dropFalseValues(dataframe_London_UTD19, column='traffic', outlier_factor=3)
+dataframe_London_UTD19 = dlib.drop_false_values(dataframe_London_UTD19, column='traffic', outlier_factor=3)
 print(f"Drop false values took {round(time.time() - drop_false_values_start)} seconds")
 
 print("Detecting anomalies")
 detect_anomalies_start = time.time()
-dataframe_London_UTD19, anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, minIQR=5, minDataPoints=4000)
-# Convert anomalies to a pandas DataFrame
-anomalies_df = pd.DataFrame(anomalies, columns=['detid'])
-anomalies_df.to_csv(f"{path_to}\\Anomalies.csv", index=False)
+dataframe_London_UTD19, dataframe_anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, min_IQR=5, min_data_points=4000)
+
+dataframe_anomalies.to_csv(f"{path_to}\\Anomalies.csv", index=False)
 print(f"Detecting anomalies took {round(time.time() - detect_anomalies_start)} seconds")
 
 print("Merging dataframes")
 merge_dataframes_start = time.time()
-dataframe_London_UTD19 = dlib.merge_dataframes_on_detid(dataframe_London_UTD19, dataframe_London_UTD19)
+dataframe_London_UTD19 = dlib.merge_dataframes_on_detid(dataframe_London_UTD19, dataframe_detectors)
 print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
 
 print("Normalizing traffic")
+
 normalize_traffic_start = time.time()
 dataframe_London_UTD19 = dlib.normalize_traffic(dataframe_London_UTD19)
 print(f"Normalizing traffic took {round(time.time() - normalize_traffic_start)} seconds")

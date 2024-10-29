@@ -366,13 +366,22 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
         - pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
         - numpy.ndarray: An array of 'detid' values identified as anomalies.
     """
-    anomalies = anomalies_IQR_out_of_bound(df, column, factor)
-    anomalies = np.append(anomalies, anomalies_IQR_to_small(df, column, min_IQR=min_IQR))
-    anomalies = np.append(anomalies, anomalies_not_enough_data(df, min_data_points=min_data_points))
+    anomalies_IQR_out_of_bound_list = anomalies_IQR_out_of_bound(df, column, factor)
+    anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR)
+    anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_data_points=min_data_points)
+    anomalies = np.concatenate([anomalies_IQR_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
-    df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
     
-    return df, anomalies
+    
+    df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
+
+    dataframe_anomalies = pd.DataFrame(anomalies, columns=['detid'])
+
+    dataframe_anomalies['IQR_out_of_bound'] = dataframe_anomalies['detid'].isin(anomalies_IQR_out_of_bound_list)
+    dataframe_anomalies['IQR_to_small'] = dataframe_anomalies['detid'].isin(anomalies_IQR_to_small_list)
+    dataframe_anomalies['not_enough_data'] = dataframe_anomalies['detid'].isin(anomalies_not_enough_data_list)
+    
+    return df, dataframe_anomalies
 
 def anomalies_IQR_out_of_bound(df, column, factor=3):
     """
