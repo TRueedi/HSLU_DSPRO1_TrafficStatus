@@ -471,15 +471,15 @@ def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday
     
     return df
 
-def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='lanes'):
+def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_columns=['lanes', 'long', 'lat', 'pos', 'length']):
     """
-    Merge two DataFrames on the specified column and include only the specified column from the second DataFrame.
+    Merge two DataFrames on the specified column and include only the specified columns from the second DataFrame.
 
     Parameters:
     df1 (pd.DataFrame): The first DataFrame.
     df2 (pd.DataFrame): The second DataFrame.
     merge_column (str): The column name to merge on.
-    include_column (str): The column name to include from the second DataFrame.
+    include_columns (list): The list of column names to include from the second DataFrame.
 
     Returns:
     pd.DataFrame: The merged DataFrame.
@@ -490,7 +490,10 @@ def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_column='la
     if merge_column in df2.index.names:
         df2 = df2.reset_index(drop=True)
 
-    merged_df = df1.merge(df2[[merge_column, include_column]], on=merge_column, how='left')
+    # Ensure the merge_column is included in the list of columns to include
+    columns_to_include = [merge_column] + include_columns
+
+    merged_df = df1.merge(df2[columns_to_include], on=merge_column, how='left')
     return merged_df
 
 def normalize_traffic_by_lanes(df, traffic_column='traffic', lanes_column='lanes', normalized_column='traffic'):
