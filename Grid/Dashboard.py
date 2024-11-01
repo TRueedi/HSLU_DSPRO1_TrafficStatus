@@ -1,4 +1,7 @@
+# Begin abfrage ob kunde oder dev
+#dev vergleicht mean traffic wert immer noch mit baselane und gibt an wie gut diese model/data oder was man verändert hat performet hat.
 ### Zuerst sollte nach dem path zu den CSV gefragt werden, wenn neue Datenkommen, kann dies so angepasst werden. Evtl. mit Standardvalues
+
 
 import tkinter as tk
 from tkinter import ttk
