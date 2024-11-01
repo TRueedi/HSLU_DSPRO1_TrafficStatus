@@ -322,28 +322,70 @@ def drop_false_values(df, column, outlier_factor=5):
     Returns:
     pandas.DataFrame: A DataFrame with the outliers removed.
     """
+    
+    # Group by 'detid' and apply the drop_group_by_count function
+    filtered_df = df.groupby('detid').apply(drop_group_by_count, column=column, outlier_factor=outlier_factor).reset_index(drop=True)
+    
+    return filtered_df
+
+def drop_group_by_count(group, column, outlier_factor):
+    """
+    Drops outliers from a group based on the value counts of a specified column using the Interquartile Range (IQR) method.
+
+    Parameters:
+    group (pandas.DataFrame): The input group DataFrame.
+    column (str): The name of the column to calculate value counts and identify outliers.
+    outlier_factor (float): The multiplier for the IQR to define the bounds for detecting outliers.
+
+    Returns:
+    pandas.DataFrame: The group DataFrame with the outliers removed.
+    """
+    # Count the occurrences of each unique value in the specified column
+    value_counts = group[column].value_counts().reset_index()
+    value_counts.columns = [column, 'count']
+    
+    # Calculate Q1, Q3, and IQR of the value counts
+    Q1 = value_counts['count'].quantile(0.25)
+    Q3 = value_counts['count'].quantile(0.75)
+    IQR = Q3 - Q1
+    lower_bound = Q1 - outlier_factor * IQR
+    upper_bound = Q3 + outlier_factor * IQR
+    
+    # Identify the outliers
+    outliers = value_counts[(value_counts['count'] < lower_bound) | (value_counts['count'] > upper_bound)]
+    
+    # Drop the outliers from the group
+    filtered_group = group[~group[column].isin(outliers[column])]
+    
+    return filtered_group
+
+def drop_false_values_by_date(df, column):
+    """
+    Deletes false values from a DataFrame based on the value counts of a specified column.
+    This function groups the DataFrame by 'day' before applying the outlier detection and removal process.
+
+    Parameters:
+    df (pandas.DataFrame): The input DataFrame containing traffic data.
+    column (str): The name of the column to calculate value counts and identify outliers.
+
+    Returns:
+    pandas.DataFrame: A DataFrame with the outliers removed.
+    """
     def drop_by_group(group):
         # Count the occurrences of each unique value in the specified column
         value_counts = group[column].value_counts().reset_index()
         value_counts.columns = [column, 'count']
         
-        # Calculate Q1, Q3, and IQR of the value counts
-        Q1 = value_counts['count'].quantile(0.25)
-        Q3 = value_counts['count'].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - outlier_factor * IQR
-        upper_bound = Q3 + outlier_factor * IQR
-        
         # Identify the outliers
-        outliers = value_counts[(value_counts['count'] < lower_bound) | (value_counts['count'] > upper_bound)]
+        outliers = value_counts[value_counts['count'] > 5000]
         
         # Drop the outliers from the group
         filtered_group = group[~group[column].isin(outliers[column])]
         
         return filtered_group
     
-    # Group by 'detid' and apply the drop_group function
-    filtered_df = df.groupby('detid').apply(drop_by_group).reset_index(drop=True)
+    # Group by 'day' and apply the drop_group function
+    filtered_df = df.groupby('day').apply(drop_by_group).reset_index(drop=True)
     
     return filtered_df
 
