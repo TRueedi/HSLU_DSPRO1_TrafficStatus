@@ -152,7 +152,7 @@ def preprocess_dataframe(df):
     
     return df
 
-def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_column='traffic'):
+def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_column='traffic', min_occ_value = 0.001):
     """
     Calculates the traffic speed and adds it as a new column to the DataFrame.
 
@@ -164,10 +164,13 @@ def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_co
     flow_column (str): The name of the column representing the flow. Default is 'flow'.
     occ_column (str): The name of the column representing the occupancy. Default is 'occ'.
     traffic_column (str): The name of the new column to store the calculated traffic speed. Default is 'traffic'.
+    min_occ_value (float): The minimum value to set for occupancy. Default is 0.001.
 
     Returns:
     pandas.DataFrame: The DataFrame with the new traffic speed column added.
     """
+    df[occ_column] = df[occ_column].clip(lower=min_occ_value)
+    
     df[traffic_column] = df[flow_column] * df[occ_column]
     return df
 
