@@ -57,23 +57,29 @@ preprocess_start = time.time()
 dataframe_London_UTD19 = dlib.preprocess_dataframe(dataframe_London_UTD19)
 print(f"Preprocessing data took {round(time.time() - preprocess_start)} seconds")
 
-print("Calculating traffic speed")
-traffic_speed_start = time.time()
-dataframe_London_UTD19 = dlib.calculate_traffic_speed(dataframe_London_UTD19)
-print(f"Calculating traffic speed took {round(time.time() - traffic_speed_start)} seconds")
-
-print("Droping outliers")
-drop_outliers_start = time.time()
-dataframe_London_UTD19 = dlib.drop_outliers(dataframe_London_UTD19, column='traffic', group_by_detid=True, outlier_factor=2.5)
-print(f"Droping outliers took {round(time.time() - drop_outliers_start)} seconds")
-
-print("Clipping outliers")
+print("Clipping outliers on occ")
 clip_outliers_start = time.time()
-dataframe_London_UTD19 = dlib.clip_outliers(dataframe_London_UTD19, column='traffic', group_by_detid=True)
-print(f"Clipping outliers took {round(time.time() - clip_outliers_start)} seconds")
+dataframe_London_UTD19 = dlib.clip_outliers(dataframe_London_UTD19, column='occ', group_by_detid=True, outlier_factor=3)
+print(f"Clipping outliers on occ took {round(time.time() - clip_outliers_start)} seconds")
+
+print("Clipping outliers on flow")
+clip_outliers_start = time.time()
+dataframe_London_UTD19 = dlib.clip_outliers(dataframe_London_UTD19, column='flow', group_by_detid=True, outlier_factor=3)
+print(f"Clipping outliers on flow took {round(time.time() - clip_outliers_start)} seconds")
+
+print("Calculating traffic")
+traffic_start = time.time()
+dataframe_London_UTD19 = dlib.calculate_traffic_speed(dataframe_London_UTD19)
+print(f"Calculating traffic took {round(time.time() - traffic_start)} seconds")
+
+print("Droping outliers on traffic")
+drop_outliers_start = time.time()
+dataframe_London_UTD19 = dlib.drop_outliers(dataframe_London_UTD19, column='traffic', group_by_detid=True, outlier_factor=2)
+print(f"Droping outliers on traffic took {round(time.time() - drop_outliers_start)} seconds")
 
 print("Drop false values")
 drop_false_values_start = time.time()
+dataframe_London_UTD19 = dlib.drop_false_values_by_date(dataframe_London_UTD19, column='traffic')
 dataframe_London_UTD19 = dlib.drop_false_values(dataframe_London_UTD19, column='traffic', outlier_factor=3)
 print(f"Drop false values took {round(time.time() - drop_false_values_start)} seconds")
 
