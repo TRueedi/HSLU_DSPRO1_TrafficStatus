@@ -120,7 +120,7 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
                 color=color,
                 fill=True,
                 fill_opacity=0.6,
-                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}"
+                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}<br>Sensors in Grid: {row['sensors_in_grid']}"
             ).add_to(m)
         
         elif polygon:
@@ -130,7 +130,7 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
                 color=color,
                 fill=True,
                 fill_opacity=0.6,
-                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}"
+                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}<br>Sensors in Grid: {row['sensors_in_grid']}"
             ).add_to(m)
 
     return m
