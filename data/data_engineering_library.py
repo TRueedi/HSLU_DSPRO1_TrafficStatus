@@ -7,6 +7,7 @@ def load_data(path,skip_rows=None, nrows=None):
 
     Parameters:
     path (str): The path to the CSV file.
+    skip_rows (int or list-like, optional): Line numbers to skip (0-indexed) or number of lines to skip (int) at the start of the file. Default is None.
     nrows (int, optional): The number of rows to read from the file. If None, all rows are read. Default is None.
 
     Returns:
@@ -23,7 +24,7 @@ def split_data_sniper(df, samples_per_day = 8):
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
-    samplesPerDay (int): The number of intervals to randomly select per day for the test set. Default is 8.
+    samples_per_day (int): The number of intervals to randomly select per day for the test set. Default is 8.
 
     Returns:
     tuple: A tuple containing two pandas DataFrames:
@@ -55,12 +56,12 @@ def split_data_day(df, number_of_test_days=1):
     """
     Splits the DataFrame into training and testing sets based on days.
 
-    This function groups the DataFrame by 'day' and 'detid', then randomly selects a specified number
+    This function groups the DataFrame by 'detid', then randomly selects a specified number
     of days for each sensor to create the test set. The remaining data forms the training set.
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
-    testDays (int): The number of days to randomly select for the test set. Default is 1.
+    number_of_test_days (int): The number of days to randomly select for the test set. Default is 1.
 
     Returns:
     tuple: A tuple containing two pandas DataFrames:
@@ -98,7 +99,7 @@ def split_data_week(df, number_of_test_weeks=1):
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
-    testWeeks (int): The number of weeks to randomly select for the test set. Default is 1.
+    number_of_test_weeks (int): The number of weeks to randomly select for the test set. Default is 1.
 
     Returns:
     tuple: A tuple containing two pandas DataFrames:
@@ -244,9 +245,9 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_inte
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
     column (str): The name of the column to process for outliers.
-    group_by_detid (bool): If True, the DataFrame is grouped by 'detid' before processing.
-    outlier_factor (float): The factor used to determine the bounds for clipping outliers.
-    num_intervals (int): The number of intervals to divide the data into for calculating mean values.
+    group_by_detid (bool): If True, the DataFrame is grouped by 'detid' before processing. Default is False.
+    outlier_factor (float): The factor used to determine the bounds for clipping outliers. Default is 1.5.
+    num_intervals (int): The number of intervals to divide the data into for calculating mean values. Default is 24.
 
     Returns:
     pandas.DataFrame: The DataFrame with outliers clipped.
@@ -285,14 +286,14 @@ def drop_outliers(df, column, group_by_detid=True, outlier_factor=3):
 
 def drop_group(group, column, outlier_factor):
     """
-    Removes outliers from a DataFrame group based on the Interquartile Range (IQR) method.
-    This function calculates the IQR for the specified column and removes rows where the column value
-    is outside the range defined by [Q1 - outlier_factor*IQR, Q3 + outlier_factor*IQR].
+    Removes outliers from a DataFrame based on the Interquartile Range (IQR) method.
+    This function can optionally group the DataFrame by 'detid' before removing outliers.
 
     Parameters:
-    group (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
+    df (pandas.DataFrame): A DataFrame containing traffic data with at least the specified column.
     column (str): The name of the column to check for outliers.
-    outlier_factor (float): The multiplier for the IQR to define the bounds for detecting outliers.
+    group_by_detid (bool, optional): If True, the DataFrame is grouped by 'detid' before removing outliers. Default is True.
+    outlier_factor (float, optional): The multiplier for the IQR to define the bounds for detecting outliers. Default is 3.
 
     Returns:
     pandas.DataFrame: A DataFrame with the outliers removed.
@@ -358,18 +359,18 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
     df (pandas.DataFrame): A DataFrame containing traffic data with at least two columns: 'detid' and the specified column.
     column (str, optional): The name of the column to calculate the mean and identify anomalies. Default is 'traffic'.
     factor (float, optional): The multiplier for the IQR to define the bounds for detecting anomalies. Default is 3.
-    minIQR (float, optional): The minimum IQR threshold to identify anomalies. Default is 5.
-    minDataPoints (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
+    min_IQR (float, optional): The minimum IQR threshold to identify anomalies. Default is 5.
+    min_data_points (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
 
     Returns:
     tuple: A tuple containing:
         - pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
-        - numpy.ndarray: An array of 'detid' values identified as anomalies.
+        - pandas.DataFrame: A DataFrame with the 'detid' values identified as anomalies and columns indicating the type of anomaly.
     """
-    anomalies_IQR_out_of_bound_list = anomalies_IQR_out_of_bound(df, column, factor)
+    anomalies_mean_out_of_bound_list = anomalies_mean_out_of_bound(df, column, factor)
     anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR)
     anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_data_points=min_data_points)
-    anomalies = np.concatenate([anomalies_IQR_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
+    anomalies = np.concatenate([anomalies_mean_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
     
     
@@ -377,13 +378,13 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
 
     dataframe_anomalies = pd.DataFrame(anomalies, columns=['detid'])
 
-    dataframe_anomalies['IQR_out_of_bound'] = dataframe_anomalies['detid'].isin(anomalies_IQR_out_of_bound_list)
+    dataframe_anomalies['mean_out_of_bound'] = dataframe_anomalies['detid'].isin(anomalies_mean_out_of_bound_list)
     dataframe_anomalies['IQR_to_small'] = dataframe_anomalies['detid'].isin(anomalies_IQR_to_small_list)
     dataframe_anomalies['not_enough_data'] = dataframe_anomalies['detid'].isin(anomalies_not_enough_data_list)
     
     return df, dataframe_anomalies
 
-def anomalies_IQR_out_of_bound(df, column, factor=3):
+def anomalies_mean_out_of_bound(df, column, factor=3):
     """
     Identifies anomalies in a DataFrame based on the Interquartile Range (IQR) method.
     This function groups the DataFrame by 'detid' and calculates the mean of the specified column.
@@ -422,7 +423,7 @@ def anomalies_IQR_to_small(df, column='traffic', min_IQR=5):
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
     column (str, optional): The name of the column to calculate the IQR. Default is 'traffic'.
-    minIQR (float, optional): The IQR threshold to check against. Default is 5.
+    min_IQR (float, optional): The IQR threshold to check against. Default is 5.
 
     Returns:
     numpy.ndarray: An array containing the 'detid' values with IQR below the specified threshold.
@@ -447,7 +448,7 @@ def anomalies_not_enough_data(df, column='detid', min_data_points=5000):
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
     column (str, optional): The name of the column representing 'detid'. Default is 'detid'.
-    minDataPoints (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
+    min_data_points (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
 
     Returns:
     numpy.ndarray: An array containing 'detid' values with fewer than the specified number of data points.
@@ -465,10 +466,10 @@ def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
-    fixedColumns (list, optional): The columns to group by when combining data points. Default is ['interval', 'day', 'detid', 'weekday'].
-    combineOnColumn (str, optional): The name of the column to round and combine data points on. Default is 'interval'.
-    meanColumn (str, optional): The name of the column to calculate the mean for. Default is 'traffic'.
-    ratio (int, optional): The ratio to round the combineOnColumn to. Default is 1000.
+    fixed_columns (list, optional): The columns to group by when combining data points. Default is ['interval', 'day', 'detid', 'weekday'].
+    combine_on_column (str, optional): The name of the column to round and combine data points on. Default is 'interval'.
+    mean_column (str, optional): The name of the column to calculate the mean for. Default is 'traffic'.
+    ratio (int, optional): The ratio to round the combine_on_column to. Default is 1000.
 
     Returns:
     pandas.DataFrame: A DataFrame with the data points combined by taking the mean of the specified column.
@@ -545,12 +546,10 @@ def final_process_dataframe(df):
     Convert the scaled values to integers, fill NaN values with 0, and drop specified columns.
 
     Parameters:
-    df (pd.DataFrame): The input DataFrame.
-    traffic_column (str): The name of the column containing traffic data (default is 'traffic').
-    columns_to_drop (list): The list of columns to drop from the DataFrame (default is None).
+    df (pandas.DataFrame): The input DataFrame.
 
     Returns:
-    pd.DataFrame: The modified DataFrame.
+    pandas.DataFrame: The modified DataFrame.
     """
     columns_to_drop = ["lanes", "occ", "flow", "city"]
     
