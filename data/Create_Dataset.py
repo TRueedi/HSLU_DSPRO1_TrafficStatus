@@ -85,10 +85,18 @@ print(f"Drop false values took {round(time.time() - drop_false_values_start)} se
 
 print("Detecting anomalies")
 detect_anomalies_start = time.time()
-dataframe_London_UTD19, dataframe_anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, min_IQR=5, min_data_points=4000)
-
-dataframe_anomalies.to_csv(f"{path_to}\\Anomalies.csv", index=False)
+dataframe_anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, min_IQR=5, min_data_points=4000)
 print(f"Detecting anomalies took {round(time.time() - detect_anomalies_start)} seconds")
+
+print("Handling anomalies")
+handle_anomalies_start = time.time()
+dataframe_London_UTD19, dataframe_anomalies = dlib.handle_anomalies(dataframe_London_UTD19, dataframe_anomalies)
+print(f"Handling anomalies took {round(time.time() - handle_anomalies_start)} seconds")
+
+print("Exporting anomalies to: ", path_to)
+exporting_anomalies_start = time.time()
+dataframe_anomalies.to_csv(f"{path_to}\\Anomalies.csv", index=False)
+print(f"Exporting anomalies took {round(time.time() - exporting_anomalies_start)} seconds")
 
 print("Merging dataframes")
 merge_dataframes_start = time.time()
@@ -96,7 +104,6 @@ dataframe_London_UTD19 = dlib.merge_dataframes_on_detid(dataframe_London_UTD19, 
 print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
 
 print("Normalizing traffic")
-
 normalize_traffic_start = time.time()
 dataframe_London_UTD19 = dlib.normalize_traffic(dataframe_London_UTD19)
 print(f"Normalizing traffic took {round(time.time() - normalize_traffic_start)} seconds")

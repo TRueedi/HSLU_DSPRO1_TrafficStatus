@@ -442,18 +442,16 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
     min_data_points (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
 
     Returns:
-    tuple: A tuple containing:
-        - pandas.DataFrame: A DataFrame with the anomalies removed, containing only the 'detid' values within the normal range.
-        - pandas.DataFrame: A DataFrame with the 'detid' values identified as anomalies and columns indicating the type of anomaly.
+    pandas.DataFrame: A DataFrame containing the 'detid' values identified as anomalies with boolean columns indicating the type of anomaly:
+        - 'mean_out_of_bound': True if the mean traffic is out of the defined bounds.
+        - 'IQR_to_small': True if the IQR is smaller than the minimum threshold.
+        - 'not_enough_data': True if there are not enough data points.
     """
     anomalies_mean_out_of_bound_list = anomalies_mean_out_of_bound(df, column, factor)
     anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR)
     anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_data_points=min_data_points)
     anomalies = np.concatenate([anomalies_mean_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
-    
-    
-    df.drop(df[df['detid'].isin(anomalies)].index, inplace=True)
 
     dataframe_anomalies = pd.DataFrame(anomalies, columns=['detid'])
 
@@ -461,7 +459,7 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
     dataframe_anomalies['IQR_to_small'] = dataframe_anomalies['detid'].isin(anomalies_IQR_to_small_list)
     dataframe_anomalies['not_enough_data'] = dataframe_anomalies['detid'].isin(anomalies_not_enough_data_list)
     
-    return df, dataframe_anomalies
+    return dataframe_anomalies
 
 def anomalies_mean_out_of_bound(df, column, factor=3):
     """
@@ -537,6 +535,70 @@ def anomalies_not_enough_data(df, column='detid', min_data_points=5000):
     print(f"Anomalies detected based on not enough data: {anomalies.size}")
     
     return anomalies
+
+def handle_anomalies(df, anomalies_df):
+    """
+    Processes and filters anomalies in the provided DataFrame.
+
+    This function handles detectors with bad days, filters out specific anomalies,
+    removes them from the original DataFrame, and prints the total number of
+    dropped anomalies.
+
+    Parameters:
+        df (pd.DataFrame): The main DataFrame to process.
+        anomalies_df (pd.DataFrame): DataFrame containing identified anomalies.
+
+    Returns:
+        tuple: 
+            - pd.DataFrame: The original DataFrame with specified anomalies removed.
+            - pd.DataFrame: Filtered DataFrame containing the handled anomalies.
+    """
+    handled_anomalies_df = handle_detectors_with_bad_days(df, anomalies_df)
+
+    handled_anomalies_df = handled_anomalies_df[
+    handled_anomalies_df[['mean_out_of_bound', 'IQR_to_small', 'not_enough_data']].any(axis=1)
+    ]
+    df = df[~df['detid'].isin(handled_anomalies_df['detid'])]
+    print(f"Total amount of dropeed anomalies: {len(handled_anomalies_df)}")
+    
+    return df,handled_anomalies_df
+
+def handle_detectors_with_bad_days(df, anomalies_df):
+    """
+    Processes detectors flagged for insufficient data by removing days with too few data points
+    and updating their anomaly status based on the remaining data.
+
+    This function filters the input DataFrame to include only detectors marked with the
+    'not_enough_data' anomaly. For each of these detectors, it removes days that have fewer
+    than 250 data points. If a detector retains at least 14 days and has data for all 7 weekdays
+    after this removal, the 'not_enough_data' flag for that detector is set to False in the
+    anomalies DataFrame.
+
+    Parameters:
+        df (pandas.DataFrame): The input DataFrame containing traffic data. Must include 'detid', 'day', and 'weekday' columns.
+        anomalies_df (pandas.DataFrame): The DataFrame containing detected anomalies. Must include 'detid' and 'not_enough_data' columns.
+
+    Returns:
+        pandas.DataFrame: The updated anomalies DataFrame with 'not_enough_data' flags adjusted based on the data processing.
+    """
+    detectors_not_enough_data = anomalies_df[anomalies_df['not_enough_data']]['detid'].unique()
+    df = df[df['detid'].isin(detectors_not_enough_data)]
+    anomalies_handled = 0
+
+    detids = df['detid'].unique()
+    for detid in detids:
+        detector_df = df[df['detid'] == detid]
+        day_counts = detector_df['day'].value_counts()
+        valid_days = day_counts[day_counts >= 230].index
+        filtered_df = detector_df[detector_df['day'].isin(valid_days)]
+
+        days = filtered_df['day'].nunique()
+        weekdays = filtered_df['weekday'].nunique()
+        if days >= 14 and weekdays == 7:
+            anomalies_df.loc[anomalies_df['detid'] == detid, 'not_enough_data'] = False
+            anomalies_handled += 1
+    print(f"Anomalies with not enough data handled: {anomalies_handled}")
+    return anomalies_df
 
 def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday'], combine_on_column = 'interval', mean_column= 'traffic', ratio=1000):
     """
