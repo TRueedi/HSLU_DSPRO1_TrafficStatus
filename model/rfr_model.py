@@ -1,9 +1,11 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
 import pandas as pd
 import os
+        
 
 def train_rfr_models(train_data, save_path): 
     weekday_mapping = {
@@ -34,7 +36,7 @@ def train_rfr_models(train_data, save_path):
         rfr_cv = GridSearchCV(estimator=rfr, param_grid=param_grid, cv=3, n_jobs=-1)
         rfr_cv.fit(X_train, y_train)
         
-        sensor = sensor.replace('/', '_')
+        sensor = sensor.replace('/', '-')
         model_path = f'{save_path}/{sensor}'
         joblib.dump(rfr_cv, model_path)
     
@@ -55,13 +57,59 @@ def get_rfr_prediction(models_path, weekday, interval_values=
             
             predictions.append(pd.DataFrame({
             'traffic': y_pred,
-            'detid': model_filename.replace('_', '/'),
+            'detid': model_filename.replace('-', '/'),
             'interval': X_values['interval'],
         }))
         
     return pd.concat(predictions)
 
 
+def evaluate_rfr_models(test_data, models_path):
+    performance_metrics = {
+        'detid': [],
+        'MAE': [],
+        'MSE': [],
+        'R2': []
+    }
+
+    weekday_mapping = {
+        'Monday': 0,
+        'Tuesday': 1,
+        'Wednesday': 2,
+        'Thursday': 3,
+        'Friday': 4,
+        'Saturday': 5,
+        'Sunday': 6
+    }
+    test_data['weekday'] = test_data['weekday'].map(weekday_mapping)
+
+    for sensor, sensor_data in test_data.groupby('detid'):
+        sensor_model_filename = sensor.replace('/', '-')
+        model_path = os.path.join(models_path, sensor_model_filename)
+        
+        if os.path.isfile(model_path):
+            sensor_model = joblib.load(model_path)
+            
+            X_test = sensor_data.drop(columns=['traffic', 'detid'])
+            y_test = sensor_data['traffic']
+            
+            y_pred = sensor_model.predict(X_test)
+            
+            mae = mean_absolute_error(y_test, y_pred)
+            mse = mean_squared_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+            
+            performance_metrics['detid'].append(sensor)
+            performance_metrics['MAE'].append(mae)
+            performance_metrics['MSE'].append(mse)
+            performance_metrics['R2'].append(r2)
+        else:
+            print(f"Model for sensor {sensor} not found.")
+    
+    performance_df = pd.DataFrame(performance_metrics)
+    return performance_df
+
+        
 
         
         
