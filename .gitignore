@@ -161,3 +161,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 Grid/London_UTD19_Modified.csv
+
+# MacOS
+.DS_Store
