@@ -1,9 +1,11 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
+import joblib
 import pandas as pd
+import os
 
-def train_rfr_models(train_data): 
+def train_rfr_models(train_data, save_path): 
     weekday_mapping = {
         'Monday': 0,
         'Tuesday': 1,
@@ -22,7 +24,6 @@ def train_rfr_models(train_data):
     }
     
     train_data['weekday'] = train_data['weekday'].map(weekday_mapping)
-    sensor_models = {}
         
     for sensor, sensor_data in train_data.groupby('detid'):
         sensor_data = sensor_data.drop('detid', axis=1)
@@ -33,12 +34,12 @@ def train_rfr_models(train_data):
         rfr_cv = GridSearchCV(estimator=rfr, param_grid=param_grid, cv=3, n_jobs=-1)
         rfr_cv.fit(X_train, y_train)
         
-        sensor_models[sensor] = rfr_cv
+        sensor = sensor.replace('/', '_')
+        model_path = f'{save_path}/{sensor}'
+        joblib.dump(rfr_cv, model_path)
     
-    return sensor_models
     
-    
-def get_rfr_prediction(rfr_models, weekday, interval_values=
+def get_rfr_prediction(models_path, weekday, interval_values=
                [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]):
     
     X_values = pd.DataFrame(interval_values, columns=['interval'])
@@ -46,12 +47,15 @@ def get_rfr_prediction(rfr_models, weekday, interval_values=
     
     predictions = []
     
-    for sensor, sensor_model in rfr_models.items():
-        
-        y_pred = sensor_model.predict(X_values)
-        predictions.append(pd.DataFrame({
+    for model_filename in os.listdir(models_path):
+        model_path = os.path.join(models_path, model_filename)
+        if os.path.isfile(model_path):
+            sensor_model = joblib.load(model_path)
+            y_pred = sensor_model.predict(X_values)
+            
+            predictions.append(pd.DataFrame({
             'traffic': y_pred,
-            'detid': sensor,
+            'detid': model_filename.replace('_', '/'),
             'interval': X_values['interval'],
         }))
         
