@@ -1,6 +1,5 @@
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import joblib
 import pandas as pd
@@ -19,8 +18,8 @@ def train_rfr_models(train_data, save_path):
     }
     
     param_grid = {
-        'n_estimators': [100, 200, 300],
-        'max_depth': [10, 20, 30],
+        'n_estimators': [100, 200, 300, 400],
+        'max_depth': [10, 20, 30, 40],
         'min_samples_split': [2, 5, 10],
         'min_samples_leaf': [1, 2, 4]
     }
@@ -33,7 +32,7 @@ def train_rfr_models(train_data, save_path):
         y_train = sensor_data['traffic']
         
         rfr = RandomForestRegressor(random_state=27)
-        rfr_cv = GridSearchCV(estimator=rfr, param_grid=param_grid, cv=3, n_jobs=-1)
+        rfr_cv = GridSearchCV(estimator=rfr, param_grid=param_grid, cv=5, n_jobs=-1, scoring='neg_mean_absolute_error')
         rfr_cv.fit(X_train, y_train)
         
         sensor = sensor.replace('/', '-')
