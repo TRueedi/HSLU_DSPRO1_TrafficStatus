@@ -3,111 +3,74 @@
 ### Zuerst sollte nach dem path zu den CSV gefragt werden, wenn neue Datenkommen, kann dies so angepasst werden. Evtl. mit Standardvalues
 
 
-import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-import folium
-from datetime import datetime
-import createmap_for_sensors
-import gridfunction_round
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output
+import pandas as pd
+import grid_functions  # Importiere die Funktionen aus grid_functions.py
+import folium
+import base64
+from io import BytesIO
 
-def plot_all_sensors():
-    createmap_for_sensors.create_map()
+# Funktion zum Plotten des Grids
+def plot_grid(weekday, hour):
+    df_weekday = grid_functions.get_weekday_prediction(weekday)
+    interval_value = hour * 3600  # Umrechnung von Stunden in Sekunden
+    grid_data = grid_functions.get_hour_prediction(df_weekday, interval_value)
+    map_object = grid_functions.plot_grid_with_shapes(grid_data, shape='rectangle', city_center=(51.550, -0.021), zoom_start=15)
 
-def plot_london_map():
-    def submit():
-        try:
-            selected_date = datetime.strptime(date_entry.get(), '%Y-%m-%d')
-            selected_time = datetime.strptime(time_entry.get(), '%H:%M').time()
-            gridfunction_round.plot_london(selected_date, selected_time)
-            messagebox.showinfo("Success", "Map generated successfully!")
-        except ValueError:
-            messagebox.showerror("Error", "Invalid date or time format. Please use YYYY-MM-DD for date and HH:MM for time.")
-    
-    date_window = tk.Toplevel(root)
-    date_window.title("Select Date and Time")
 
-    tk.Label(date_window, text="Date (YYYY-MM-DD):").grid(row=0, column=0)
-    date_entry = tk.Entry(date_window)
-    date_entry.grid(row=0, column=1)
+    return map_object
 
-    tk.Label(date_window, text="Time (HH:MM):").grid(row=1, column=0)
-    time_entry = tk.Entry(date_window)
-    time_entry.grid(row=1, column=1)
+# Funktion zum Konvertieren der Folium-Karte in HTML
+def map_to_html(map_object):
+    map_html = map_object._repr_html_()
+    return map_html
 
-    submit_button = tk.Button(date_window, text="Submit", command=submit)
-    submit_button.grid(row=2, columnspan=2)
-
-root = tk.Tk()
-root.title("Traffic Status Dashboard")
-
-main_frame = ttk.Frame(root, padding="10")
-main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-
-ttk.Label(main_frame, text="Choose an option:").grid(row=0, column=0, columnspan=2)
-
-plot_sensors_button = ttk.Button(main_frame, text="Plot All Sensors", command=plot_all_sensors)
-plot_sensors_button.grid(row=1, column=0)
-
-plot_london_button = ttk.Button(main_frame, text="Plot London Map", command=plot_london_map)
-plot_london_button.grid(row=1, column=1)
-
-root.mainloop()
-import plotly.express as px
-
+# Dash App
 app = dash.Dash(__name__)
 
 app.layout = html.Div([
-    html.H1("Traffic Status Dashboard"),
-    dcc.RadioItems(
-        id='option-selector',
+    html.H1("Grid Plotter"),
+    html.Label("Select Weekday:"),
+    dcc.Dropdown(
+        id='weekday-dropdown',
         options=[
-            {'label': 'Plot All Sensors', 'value': 'all_sensors'},
-            {'label': 'Plot London Map', 'value': 'london_map'}
+            {'label': 'Monday', 'value': 0},
+            {'label': 'Tuesday', 'value': 1},
+            {'label': 'Wednesday', 'value': 2},
+            {'label': 'Thursday', 'value': 3},
+            {'label': 'Friday', 'value': 4},
+            {'label': 'Saturday', 'value': 5},
+            {'label': 'Sunday', 'value': 6}
         ],
-        value='all_sensors'
+        value=0
     ),
-    html.Div(id='input-container'),
-    html.Button('Submit', id='submit-button', n_clicks=0),
-    html.Div(id='output-container')
+    html.Label("Select Hour:"),
+    dcc.Slider(
+        id='hour-slider',
+        min=0,
+        max=24,
+        step=1,
+        value=12,
+        marks={i: f'{i}:00' for i in range(25)}
+    ),
+    html.Button('Plot Grid', id='plot-button', n_clicks=0),
+    html.Div(id='map')
 ])
 
 @app.callback(
-    Output('input-container', 'children'),
-    Input('option-selector', 'value')
+    Output('map', 'children'),
+    Input('plot-button', 'n_clicks'),
+    Input('weekday-dropdown', 'value'),
+    Input('hour-slider', 'value')
 )
-def update_input_container(selected_option):
-    if selected_option == 'london_map':
-        return html.Div([
-            dcc.Input(id='date-input', type='text', placeholder='YYYY-MM-DD'),
-            dcc.Input(id='time-input', type='text', placeholder='HH:MM')
-        ])
-    return html.Div()
-
-@app.callback(
-    Output('output-container', 'children'),
-    Input('submit-button', 'n_clicks'),
-    Input('option-selector', 'value'),
-    Input('date-input', 'value'),
-    Input('time-input', 'value')
-)
-def update_output(n_clicks, selected_option, date_value, time_value):
+def update_map(n_clicks, weekday, hour):
     if n_clicks > 0:
-        if selected_option == 'all_sensors':
-            createmap_for_sensors.create_map()
-            return "All sensors map generated successfully!"
-        elif selected_option == 'london_map':
-            try:
-                selected_date = datetime.strptime(date_value, '%Y-%m-%d')
-                selected_time = datetime.strptime(time_value, '%H:%M').time()
-                gridfunction_round.plot_london(selected_date, selected_time)
-                return "London map generated successfully!"
-            except ValueError:
-                return "Invalid date or time format. Please use YYYY-MM-DD for date and HH:MM for time."
-    return ""
+        map_object = plot_grid(weekday, hour)
+        map_html = map_to_html(map_object)
+        return html.Iframe(srcDoc=map_html, width='100%', height='600')
+    return html.Div()
 
 if __name__ == '__main__':
     app.run_server(debug=True)

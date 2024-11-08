@@ -1,15 +1,36 @@
-# !pip install branca
-# !pip install folium geopandas
-
+import joblib
+import os
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import pandas as pd
 import numpy as np
-import branca.colormap as cm  # Used for color gradient
+import branca.colormap as cm 
 import folium
 import geopandas
 
 
-def __init__():
-    pass
+def get_random_baseline_prediction(models_path, weekday, interval_values=
+                                   [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]):
+    
+    X_values = pd.DataFrame(interval_values, columns=['interval'])
+    X_values['weekday'] = weekday
+    
+    predictions = []
+    
+    for model_filename in os.listdir(models_path):
+        if '_baseline' in model_filename:
+            model_path = os.path.join(models_path, model_filename)
+            sensor_baseline = joblib.load(model_path)
+            
+            # Generate random traffic values within the saved range
+            y_pred = np.random.uniform(sensor_baseline['min'], sensor_baseline['max'], len(X_values))
+            
+            predictions.append(pd.DataFrame({
+                'traffic': y_pred,
+                'detid': model_filename.replace('_baseline', '').replace('-', '/'),
+                'interval': X_values['interval']
+            }))
+    
+    return pd.concat(predictions)
 
 
 def grid(df, sensorid_col, trafficIndex_col, shape=0.01):
@@ -141,28 +162,71 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
     return m
 
 
-# User input
-htmloutput = input("Enter if you want to save the output as html file (yes/no): ")
 
-path = input("Enter the path with the filename to the sensor data file: ")
-path_london_detectors = input("Enter the path with the filename to the London detectors file: ")
-print("Loading data from: ", path + " and " + path_london_detectors)
-df_sensors = pd.read_csv(path)
-df_detectors = pd.read_csv(path_london_detectors)
-print("Data loaded successfully!")
+def get_weekday_prediction(weekday):
+    """
+    This function generates a prediction for a given weekday using the baseline models.
+    It returns a DataFrame with the predicted traffic values for each sensor.
+    Weekday mapping:
+    - Monday: 0
+    - Tuesday: 1
+    - Wednesday: 2
+    - Thursday: 3
+    - Friday: 4
+    - Saturday: 5
+    - Sunday: 6
+    """
+    df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
+        
+    df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", weekday)
+    df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
+    
+    return df_weekday_with_coords
 
-df_merged = pd.merge(df_sensors, df_detectors, on='detector_id', how='left')
-print("Data merged with Coords successfully!")
 
 
-#sensorid_col, trafficIndex_col = input("Enter the column names for sensor ids (standard = detid) and traffic indices (standard = traffic) separated by a comma: ").split(',')
+def get_hour_prediction(df, interval_value):
+    """
+    This function generates the baseline grids for all weekdays and intervals.
+    possible Intervalls between: [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]
+    
+    
+    """
+    df_real = df[df['interval'] == interval_value]
+    grid_data = grid(df_real, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
+    return grid_data
 
-grid_data = grid(df_merged, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
 
 
-map_with_rectangles = plot_grid_with_shapes(grid_data, shape='rectangle', city_center=(51.550, -0.021), zoom_start=15)
 
-if htmloutput == 'yes':
-    map_with_rectangles.save('london_grid_rectangles.html')
-else:
-    map_with_rectangles
+def saving_baseline_grids():
+    """
+    This function generates the baseline grids for all weekdays and intervals and saves them to CSV files.
+    They than can be used for later tests.
+    """
+    
+    
+    df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
+    
+    weekday_mapping = {
+        'Monday': 0,
+        'Tuesday': 1,
+        'Wednesday': 2,
+        'Thursday': 3,
+        'Friday': 4,
+        'Saturday': 5,
+        'Sunday': 6
+    }
+    
+    interval_values= [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]
+    
+    
+    
+    for x in range(7):
+        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", x)
+        df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
+
+        for y in interval_values:
+            df_real = df_weekday_with_coords[df_weekday_with_coords['interval'] == y]
+            grid_data = grid(df_real, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
+            grid_data.to_csv(f"baselinegrids/{x}_{y}.csv", index=False)
