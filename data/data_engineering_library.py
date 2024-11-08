@@ -174,78 +174,89 @@ def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_co
     df[traffic_column] = df[flow_column] * df[occ_column]
     return df
 
-def calculate_mean_in_intervals(group, column, num_intervals):
+def calculate_interval_stats(group, column, num_intervals):
     """
-    Calculates the mean values of the specified column in the group DataFrame divided into intervals.
+    Calculate mean and Interquartile Range (IQR) statistics for each interval within a group.
 
-    This function divides the data in the specified column into a given number of intervals and calculates
-    the mean value for each interval.
+    This function divides the provided group into a specified number of intervals and calculates
+    the mean, first quartile (Q1), third quartile (Q3), and IQR for each interval of the specified column.
 
     Parameters:
-    group (pandas.DataFrame): The input group DataFrame containing the data.
-    column (str): The name of the column to calculate mean values for.
-    num_intervals (int): The number of intervals to divide the data into.
+        group (pandas.DataFrame): The DataFrame group to process.
+        column (str): The name of the column to compute statistics for.
+        num_intervals (int): The number of intervals to divide the group into.
 
     Returns:
-    list: A list of mean values for each interval.
+        tuple:
+            - list: A list of mean values for each interval.
+            - list: A list of tuples, each containing (Q1, Q3, IQR) for the corresponding interval.
     """
     interval_size = len(group) // num_intervals
     means = []
+    bounds = []
     
     for i in range(num_intervals):
         start_idx = i * interval_size
         end_idx = (i + 1) * interval_size if i < num_intervals - 1 else len(group)
-        interval_mean = group.iloc[start_idx:end_idx][column].mean()
+        interval_data = group.iloc[start_idx:end_idx][column]
+        
+        # Calculate interval statistics
+        interval_mean = interval_data.mean()
+        Q1 = interval_data.quantile(0.25)
+        Q3 = interval_data.quantile(0.75)
+        IQR = Q3 - Q1
+        
         means.append(interval_mean)
+        bounds.append((Q1, Q3, IQR))
     
-    return means
+    return means, bounds
 
 def clip_group(group, column, outlier_factor, num_intervals):
     """
-    Clips outliers in the specified column of the group DataFrame.
+    Clips outliers in a DataFrame group using interval-specific IQR bounds.
 
-    This function calculates the interquartile range (IQR) to determine outliers in the specified column.
-    Outliers are replaced with the mean value of their respective interval. The data is divided into
-    a specified number of intervals, and the mean value for each interval is calculated.
+    This function divides the provided group into a specified number of intervals and calculates
+    the mean and Interquartile Range (IQR) for each interval of the specified column.
+    Outliers are identified based on the interval-specific IQR bounds and are replaced with
+    the corresponding interval mean.
 
     Parameters:
-    group (pandas.DataFrame): The input group DataFrame containing the data.
-    column (str): The name of the column to process for outliers.
-    outlier_factor (float): The factor used to determine the bounds for clipping outliers.
-    num_intervals (int): The number of intervals to divide the data into for calculating mean values.
+        group (pandas.DataFrame): The DataFrame group to process.
+        column (str): The name of the column to process for outliers.
+        outlier_factor (float): The multiplier for the IQR to define the bounds for detecting outliers.
+        num_intervals (int): The number of intervals to divide the group into for calculating statistics.
 
     Returns:
-    tuple:
-        pandas.DataFrame: The group DataFrame with outliers clipped.
-        int: The number of outliers clipped.
+        tuple:
+            - pandas.DataFrame: The DataFrame with outliers clipped.
+            - int: The total number of outliers that were replaced.
     """
-    Q1 = group[column].quantile(0.25)
-    Q3 = group[column].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - outlier_factor * IQR
-    upper_bound = Q3 + outlier_factor * IQR
-    
-    # Calculate means in intervals
-    means = calculate_mean_in_intervals(group, column, num_intervals)
     interval_size = len(group) // num_intervals
+    means, bounds = calculate_interval_stats(group, column, num_intervals)
+    outliers = 0
     
-    def get_interval_mean(index):
-        interval_index = index // interval_size
-        if interval_index >= num_intervals:
-            interval_index = num_intervals - 1
-        return means[interval_index]
+    # Create copy to avoid modifying original
+    group = group.copy()
     
-    # Identify outliers
-    outliers_mask = (group[column] < lower_bound) | (group[column] > upper_bound)
-    outliers = outliers_mask.sum()
+    for i in range(num_intervals):
+        start_idx = i * interval_size
+        end_idx = (i + 1) * interval_size if i < num_intervals - 1 else len(group)
+        
+        Q1, Q3, IQR = bounds[i]
+        lower_bound = Q1 - outlier_factor * IQR
+        upper_bound = Q3 + outlier_factor * IQR
+        
+        # Identify and replace outliers for this interval
+        interval_mask = (group.index >= start_idx) & (group.index < end_idx)
+        outliers_mask = interval_mask & ((group[column] < lower_bound) | (group[column] > upper_bound))
+        outliers += outliers_mask.sum()
+        
+        # Replace outliers with interval mean
+        group.loc[outliers_mask, column] = means[i]
     
-    # Replace outliers with the mean value of their respective interval
-    group[column] = group.apply(
-        lambda row: get_interval_mean(row.name) if outliers_mask.loc[row.name] else row[column], axis=1
-    )
     return group, outliers
 
-def clip_outliers(df, column, group_by_detid=False, outlier_factor=1.5, num_intervals=24):
+def clip_outliers(df, column, group_by_detid=False, outlier_factor=3, num_intervals=24):
     """
     Clips outliers in the specified column of the DataFrame.
 
@@ -412,7 +423,7 @@ def drop_false_values_by_date(df, column):
         # Identify the outliers
         outliers = value_counts[value_counts['count'] > 5000]
 
-        outliers_count = outliers.shape[0] * 6000
+        outliers_count = outliers.shape[0] * 6500
         total_outliers_count += outliers_count
 
         # Drop the outliers from the group
@@ -594,7 +605,7 @@ def handle_detectors_with_bad_days(df, anomalies_df):
 
         days = filtered_df['day'].nunique()
         weekdays = filtered_df['weekday'].nunique()
-        if days >= 14 and weekdays == 7:
+        if days >= 10 and weekdays == 7:
             anomalies_df.loc[anomalies_df['detid'] == detid, 'not_enough_data'] = False
             anomalies_handled += 1
     print(f"Anomalies with not enough data handled: {anomalies_handled}")
