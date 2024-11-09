@@ -54,8 +54,14 @@ print("Data loaded")
 
 print("Preprocessing data")
 preprocess_start = time.time()
-dataframe_London_UTD19 = dlib.preprocess_dataframe(dataframe_London_UTD19)
+dataframe_London_UTD19, errors = dlib.preprocess_dataframe(dataframe_London_UTD19)
+print(f"Errors found and dropped: {errors}")
 print(f"Preprocessing data took {round(time.time() - preprocess_start)} seconds")
+
+print("Drop bad days")
+drop_bad_days_start = time.time()
+dataframe_London_UTD19 = dlib.drop_false_values_by_date(dataframe_London_UTD19, column='flow')
+print(f"Drop bad days took {round(time.time() - drop_bad_days_start)} seconds")
 
 print("Clipping outliers on occ")
 clip_outliers_start = time.time()
@@ -80,7 +86,7 @@ print(f"Droping outliers on traffic took {round(time.time() - drop_outliers_star
 print("Drop false values")
 drop_false_values_start = time.time()
 dataframe_London_UTD19 = dlib.drop_false_values_by_date(dataframe_London_UTD19, column='traffic')
-dataframe_London_UTD19 = dlib.drop_false_values(dataframe_London_UTD19, column='traffic', outlier_factor=3)
+#dataframe_London_UTD19 = dlib.drop_false_values(dataframe_London_UTD19, column='traffic', outlier_factor=5)
 print(f"Drop false values took {round(time.time() - drop_false_values_start)} seconds")
 
 print("Detecting anomalies")

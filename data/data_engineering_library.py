@@ -135,22 +135,27 @@ def split_data_week(df, number_of_test_weeks=1):
 def preprocess_dataframe(df):
     """
     Preprocesses the input DataFrame by performing the following operations:
-    1. Drops the 'error' and 'speed' columns.
-    2. Converts the 'day' column to datetime format.
-    3. Adds a new column 'weekday' with the day of the week.
+    1. Counts and removes rows where the 'error' column is equal to 1.
+    2. Drops the 'error' and 'speed' columns.
+    3. Converts the 'day' column to datetime format.
+    4. Adds a new column 'weekday' with the name of the day of the week.
 
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing the data.
+        df (pandas.DataFrame): The input DataFrame containing the data.
 
     Returns:
-    pandas.DataFrame: The preprocessed DataFrame.
+        tuple:
+            - pandas.DataFrame: The preprocessed DataFrame.
+            - int: The number of rows removed due to errors.
     """
+    errors = df['error'].value_counts().get(1, 0)
+    df = df[df['error'] != 1]
     df = df.drop(["error", "speed"], axis=1)
 
     df['day'] = pd.to_datetime(df['day'])
     df['weekday'] = df['day'].dt.day_name()
     
-    return df
+    return df, errors
 
 def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_column='traffic', min_occ_value = 0.001):
     """
@@ -421,9 +426,9 @@ def drop_false_values_by_date(df, column):
         value_counts.columns = [column, 'count']
         
         # Identify the outliers
-        outliers = value_counts[value_counts['count'] > 5000]
+        outliers = value_counts[value_counts['count'] > 250]
 
-        outliers_count = outliers.shape[0] * 6500
+        outliers_count = outliers.shape[0] * 288
         total_outliers_count += outliers_count
 
         # Drop the outliers from the group
@@ -432,7 +437,7 @@ def drop_false_values_by_date(df, column):
         return filtered_group
 
     # Group by 'day' and apply the drop_by_group function
-    filtered_df = df.groupby('day').apply(drop_by_group).reset_index(drop=True)
+    filtered_df = df.groupby(['day', 'detid']).apply(drop_by_group).reset_index(drop=True)
     
     print(f"Total outliers detected and removed: {total_outliers_count}")
     return filtered_df
@@ -611,23 +616,23 @@ def handle_detectors_with_bad_days(df, anomalies_df):
     print(f"Anomalies with not enough data handled: {anomalies_handled}")
     return anomalies_df
 
-def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday'], combine_on_column = 'interval', mean_column= 'traffic', ratio=1000):
+def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday'], combine_on_column = 'interval', mean_column= 'traffic', ratio=3600):
     """
-    Combines multiple data points for the same 'detid' into a single data point by taking the mean of the specified column.
-    The 'interval' column is rounded to the nearest specified ratio before combining data points.
+    Combines multiple data points for the same 'detid' into a single data point by calculating the mean of the specified column.
+    The values in the 'combine_on_column' are rounded to the nearest multiple of 'ratio' before combining.
 
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing traffic data.
-    fixed_columns (list, optional): The columns to group by when combining data points. Default is ['interval', 'day', 'detid', 'weekday'].
-    combine_on_column (str, optional): The name of the column to round and combine data points on. Default is 'interval'.
-    mean_column (str, optional): The name of the column to calculate the mean for. Default is 'traffic'.
-    ratio (int, optional): The ratio to round the combine_on_column to. Default is 1000.
+        df (pandas.DataFrame): Input DataFrame containing traffic data.
+        fixed_columns (List[str], optional): Columns to group by when combining data points. Defaults to ['interval', 'day', 'detid', 'weekday'].
+        combine_on_column (str, optional): Column to round and combine data points on. Defaults to 'interval'.
+        mean_column (str, optional): Column to calculate the mean for. Defaults to 'traffic'.
+        ratio (int, optional): The value to round 'combine_on_column' to. Defaults to 3600.
 
     Returns:
-    pandas.DataFrame: A DataFrame with the data points combined by taking the mean of the specified column.
+        pandas.DataFrame: DataFrame with combined data points, averaging the specified column.
     """
     
-    df[combine_on_column] = (df[combine_on_column] / ratio).round() * 1000
+    df[combine_on_column] = (df[combine_on_column] / ratio).round() * ratio
 
     df = df.groupby(fixed_columns).mean(mean_column).reset_index()
     
