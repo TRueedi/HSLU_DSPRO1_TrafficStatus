@@ -125,10 +125,34 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
     # Create a color map that interpolates between green (low) and red (high)
     colormap = cm.LinearColormap(colors=['green', 'yellow', 'red'], 
                                  vmin=grid['mean_trafficIndex'].min(), 
-                                 vmax=grid['mean_trafficIndex'].max())
+                                 vmax=grid['mean_trafficIndex'].max(),
+                                 caption='Mean Traffic Index')
     
-    colormap.caption = 'Mean Traffic Index'
+    
     m.add_child(colormap)  # Add the colormap to the map
+
+
+    # Add custom CSS to adjust the size of the colormap legend
+    custom_css = """
+    <style>
+    .legend {
+        font-size: 16px;
+        padding: 10px;
+    }
+    .legend .caption {
+        font-size: 20px;
+        font-weight: normal;
+        margin-bottom: 20px;
+    }
+    .legend .colorbar {
+        width: 300px;
+        height: 20px;
+        margin-bottom: 10px;
+    }
+    </style>
+    """
+    m.get_root().header.add_child(folium.Element(custom_css))
+
 
     # Plot the grid cells on the map with the chosen shape
     for _, row in grid.iterrows():
