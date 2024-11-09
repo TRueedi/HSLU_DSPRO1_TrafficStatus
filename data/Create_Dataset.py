@@ -104,15 +104,20 @@ exporting_anomalies_start = time.time()
 dataframe_anomalies.to_csv(f"{path_to}\\Anomalies.csv", index=False)
 print(f"Exporting anomalies took {round(time.time() - exporting_anomalies_start)} seconds")
 
-print("Merging dataframes")
-merge_dataframes_start = time.time()
-dataframe_London_UTD19 = dlib.merge_dataframes_on_detid(dataframe_London_UTD19, dataframe_detectors)
-print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
-
 print("Normalizing traffic")
 normalize_traffic_start = time.time()
 dataframe_London_UTD19 = dlib.normalize_traffic(dataframe_London_UTD19)
 print(f"Normalizing traffic took {round(time.time() - normalize_traffic_start)} seconds")
+
+print("Combine datapoints")
+combine_datapoints_start = time.time()
+dataframe_London_UTD19 = dlib.combine_datapoints(dataframe_London_UTD19, ratio=3600)
+print(f"Combine datapoints took {round(time.time() - combine_datapoints_start)} seconds")
+
+print("Merging dataframes")
+merge_dataframes_start = time.time()
+dataframe_London_UTD19 = dlib.merge_dataframes_on_detid(dataframe_London_UTD19, dataframe_detectors)
+print(f"Merging dataframes took {round(time.time() - merge_dataframes_start)} seconds")
 
 print("Final processing")
 final_process_start = time.time()

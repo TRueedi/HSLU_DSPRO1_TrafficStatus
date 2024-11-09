@@ -708,7 +708,7 @@ def final_process_dataframe(df):
     Returns:
     pandas.DataFrame: The modified DataFrame.
     """
-    columns_to_drop = ["lanes", "occ", "flow", "city"]
+    columns_to_drop = ["lanes", "occ", "flow"]
     
     df.loc[:, 'traffic'] = df['traffic'].fillna(0).astype(int)
     
