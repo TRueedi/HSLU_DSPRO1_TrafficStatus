@@ -19,6 +19,7 @@ def train_random_baseline_models(train_data, save_path):
     }
     
     train_data['weekday'] = train_data['weekday'].map(weekday_mapping)
+    interval_values = np.arange(0, 86101, 300)
     
     for sensor, sensor_data in train_data.groupby('detid'):
         y_train = sensor_data['traffic']
@@ -29,12 +30,28 @@ def train_random_baseline_models(train_data, save_path):
         random_lower_bound = int(np.round(Q1, 0))
         random_higher_bound = int(np.round(Q3, 0))
         
-        traffic_range = {'min': random_lower_bound, 'max': random_higher_bound}
+        random_predictions = {
+            'weekday': [],
+            'interval': [],
+            'traffic': []
+        }
+        
+        random_traffic_values = np.random.randint(random_lower_bound, random_higher_bound + 1, 7 * len(interval_values))
+        
+        traffic_index = 0
+        for weekday in range (0, 7):
+            for interval_val in range(0, 86101, 300):
+                random_predictions['weekday'].append(weekday)
+                random_predictions['interval'].append(interval_val)
+                random_predictions['traffic'].append(random_traffic_values[traffic_index])
+                traffic_index += 1
+        
+        random_predictions_df = pd.DataFrame(random_predictions)
         
         # Save the traffic range for each sensor as a baseline "model"
         sensor = sensor.replace('/', '-')
         model_path = f'{save_path}/{sensor}_baseline'
-        joblib.dump(traffic_range, model_path)
+        joblib.dump(random_predictions_df, model_path)
 
 
 def get_random_baseline_prediction(models_path, weekday, interval_values=
@@ -43,6 +60,7 @@ def get_random_baseline_prediction(models_path, weekday, interval_values=
     X_values = pd.DataFrame(interval_values, columns=['interval'])
     X_values['weekday'] = weekday
     
+    
     predictions = []
     
     for model_filename in os.listdir(models_path):
@@ -50,29 +68,15 @@ def get_random_baseline_prediction(models_path, weekday, interval_values=
             model_path = os.path.join(models_path, model_filename)
             sensor_baseline = joblib.load(model_path)
             
-            # Generate random traffic values within the saved range
-            y_pred = np.random.uniform(sensor_baseline['min'], sensor_baseline['max'], len(X_values))
+            prediction_data = sensor_baseline[sensor_baseline['weekday'] == weekday]
+            prediction_data = prediction_data[prediction_data['interval'].isin(interval_values)]
             
-            predictions.append(pd.DataFrame({
-                'traffic': y_pred,
-                'detid': model_filename.replace('_baseline', '').replace('-', '/'),
-                'interval': X_values['interval']
-            }))
-    
+            predictions.append(prediction_data)
+            
     return pd.concat(predictions)
 
 
 def evaluate_random_baseline_models(test_data, models_path):
-    """
-    Evaluate the random baseline by generating random predictions within the saved range 
-    for each sensor and calculating performance metrics.
-    """
-    performance_metrics = {
-        'detid': [],
-        'MAE': [],
-        'MSE': [],
-        'R2': []
-    }
 
     weekday_mapping = {
         'Monday': 0,
@@ -85,28 +89,38 @@ def evaluate_random_baseline_models(test_data, models_path):
     }
     test_data['weekday'] = test_data['weekday'].map(weekday_mapping)
 
+    mae_scores = []
+    mse_scores = []
+
     for sensor, sensor_data in test_data.groupby('detid'):
-        sensor_baseline_filename = sensor.replace('/', '-') + '_baseline'
-        model_path = os.path.join(models_path, sensor_baseline_filename)
+        model_filename = f'{sensor.replace("/", "-")}_baseline'
+        model_path = os.path.join(models_path, model_filename)
         
-        if os.path.isfile(model_path):
-            sensor_baseline = joblib.load(model_path)
-            y_test = sensor_data['traffic']
+        if os.path.exists(model_path):
+            baseline_data = joblib.load(model_path)
             
-            # Generate random predictions within the saved range
-            y_random = np.random.uniform(sensor_baseline['min'], sensor_baseline['max'], len(y_test))
+            merged_data = pd.merge(
+                sensor_data[['weekday', 'interval', 'traffic']], 
+                baseline_data[['weekday', 'interval', 'traffic']], 
+                on=['weekday', 'interval'], 
+                suffixes=('_actual', '_pred')
+            )
             
-            # Calculate baseline metrics
-            mae = mean_absolute_error(y_test, y_random)
-            mse = mean_squared_error(y_test, y_random)
-            r2 = r2_score(y_test, y_random)
+            mae = mean_absolute_error(merged_data['traffic_actual'], merged_data['traffic_pred'])
+            mse = mean_squared_error(merged_data['traffic_actual'], merged_data['traffic_pred'])
             
-            performance_metrics['detid'].append(sensor)
-            performance_metrics['MAE'].append(mae)
-            performance_metrics['MSE'].append(mse)
-            performance_metrics['R2'].append(r2)
+            mae_scores.append(mae)
+            mse_scores.append(mse)
+        
         else:
-            print(f"Baseline model for sensor {sensor} not found.")
+            print(f"Baseline model for sensor {sensor} not found in {models_path}")
     
-    performance_df = pd.DataFrame(performance_metrics)
-    return performance_df
+    average_mae = sum(mae_scores) / len(mae_scores) if mae_scores else None
+    average_mse = sum(mse_scores) / len(mse_scores) if mse_scores else None
+
+    evaluation_results = {
+        'Average MAE': average_mae,
+        'Average MSE': average_mse,
+    }
+    
+    return pd.DataFrame(evaluation_results, index=[0])
