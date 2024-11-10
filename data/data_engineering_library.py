@@ -15,7 +15,7 @@ def load_data(path,skip_rows=None, nrows=None):
     """
     return pd.read_csv(path, nrows=nrows, skiprows=skip_rows)
 
-def split_data_sniper(df, samples_per_day = 8):
+def split_data_sniper(df, samples_per_day = 2):
     """
     Splits the DataFrame into training and testing sets based on random intervals.
 
@@ -24,7 +24,7 @@ def split_data_sniper(df, samples_per_day = 8):
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
-    samples_per_day (int): The number of intervals to randomly select per day for the test set. Default is 8.
+    samples_per_day (int): The number of intervals to randomly select per day for the test set. Default is 2.
 
     Returns:
     tuple: A tuple containing two pandas DataFrames:
@@ -39,7 +39,7 @@ def split_data_sniper(df, samples_per_day = 8):
 
     for (day, sensor), group in grouped:
         # Randomly select samplesPerDay intervals
-        intervals = np.random.choice(range(288), samples_per_day, replace=False) * 300
+        intervals = np.random.choice(range(24), samples_per_day, replace=False) * 3600
         test_indices = group.index[group['interval'].isin(intervals)]
         
         # Split into test and train sets
