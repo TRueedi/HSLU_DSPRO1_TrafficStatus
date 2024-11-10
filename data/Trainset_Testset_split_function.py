@@ -1,6 +1,6 @@
 import os
 import pandas as pd 
-import data.data_engineering_library as dlib
+import data_engineering_library as dlib
 
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19_Modified.csv
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
@@ -34,11 +34,11 @@ def spliter(splitting_method, df):
     tuple: A tuple containing the train set and the test set.
     """
     if splitting_method == "Sniper":
-        train_set, test_set = dlib.splitDataSniper(df)
+        train_set, test_set = dlib.split_data_sniper(df)
     elif splitting_method == "Day":
-        train_set, test_set = dlib.splitDataDay(df)
+        train_set, test_set = dlib.split_data_day(df)
     elif splitting_method == "Week":
-        train_set, test_set = dlib.splitDataWeek(df)
+        train_set, test_set = dlib.split_data_week(df)
     else:
         print("Invalid splitting method")
         return None, None
@@ -49,7 +49,7 @@ def spliter(splitting_method, df):
 path_from, path_to, number_of_splits, splitting_method = get_user_input()
 
 print("Loading data from: ", path_from)
-dataframe_London_UTD19 = dlib.loadData(path= path_from)
+dataframe_London_UTD19 = dlib.load_data(path= path_from)
 print("Data loaded")
 print("Splitting data into ", number_of_splits, " splits")
 
