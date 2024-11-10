@@ -700,17 +700,17 @@ def normalize_traffic(df, traffic_column='traffic', normalized_range=(0, 99)):
 
 def final_process_dataframe(df):
     """
-    Convert the scaled values to integers, fill NaN values with 0, and drop specified columns.
+    Convert the scaled values by rounding to the nearest integer, fill NaN values with 0, and drop specified columns.
 
     Parameters:
-    df (pandas.DataFrame): The input DataFrame.
+        df (pandas.DataFrame): The input DataFrame.
 
     Returns:
-    pandas.DataFrame: The modified DataFrame.
+        pandas.DataFrame: The modified DataFrame.
     """
     columns_to_drop = ["lanes", "occ", "flow"]
     
-    df.loc[:, 'traffic'] = df['traffic'].fillna(0).astype(int)
+    df['traffic'] = df['traffic'].fillna(0).round().astype(int)
     
     df_modified = df.drop(columns_to_drop, axis=1)
     
