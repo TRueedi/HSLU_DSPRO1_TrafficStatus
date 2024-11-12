@@ -70,6 +70,8 @@ def get_random_baseline_prediction(models_path, weekday, interval_values=
             
             prediction_data = sensor_baseline[sensor_baseline['weekday'] == weekday]
             prediction_data = prediction_data[prediction_data['interval'].isin(interval_values)]
+            prediction_data['detid'] = model_filename.replace('_baseline', '').replace('-', '/')
+            prediction_data = prediction_data.drop('weekday', axis=1)
             
             predictions.append(prediction_data)
             
