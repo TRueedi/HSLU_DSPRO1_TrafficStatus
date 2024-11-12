@@ -330,6 +330,21 @@ def drop_outliers(df, column, group_by_detid=True, outlier_factor=3):
     print(f"Total outliers dropped: {total_outliers}")
     return df
 
+def clip_to_high_values(df, column='traffic', threshold= 500):
+    """
+    Clips the values in the specified column of the DataFrame to a maximum threshold.
+
+    Parameters:
+        df (pandas.DataFrame): The input DataFrame containing the data.
+        column (str): The name of the column to clip.
+        threshold (int or float): The maximum value to which the column's values will be clipped.
+
+    Returns:
+        pandas.DataFrame: The DataFrame with values in the specified column clipped to the threshold.
+    """
+    df[column] = df[column].clip(upper=threshold)
+    return df
+
 def drop_group(group, column, outlier_factor):
     """
     Removes outliers from a DataFrame based on the Interquartile Range (IQR) method.
@@ -694,6 +709,8 @@ def normalize_traffic(df, traffic_column='traffic', normalized_range=(0, 99)):
     min_traffic = df[traffic_column].min()
     max_traffic = df[traffic_column].max()
     min_range, max_range = normalized_range
+    
+    print(f'traffic range was between:{min_traffic} and {max_traffic}')
 
     df[traffic_column] = ((df[traffic_column] - min_traffic) / (max_traffic - min_traffic)) * (max_range - min_range) + min_range
     return df
