@@ -1,3 +1,5 @@
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.model_selection import GridSearchCV
 import joblib
 import os
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -30,6 +32,33 @@ def get_random_baseline_prediction(models_path, weekday, interval_values=
                 'interval': X_values['interval']
             }))
     
+    return pd.concat(predictions)
+
+
+def get_knn_prediction(models_path, weekday, interval_values=[
+               0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 
+               36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 
+               68400, 72000, 75600, 79200, 82800]):
+    
+    X_values = pd.DataFrame(interval_values, columns=['interval'])
+    X_values['weekday'] = weekday
+    
+    predictions = []
+    
+    for model_filename in os.listdir(models_path):
+        model_path = os.path.join(models_path, model_filename)
+        if os.path.isfile(model_path):
+            # Load the KNN model
+            sensor_model = joblib.load(model_path)
+            y_pred = sensor_model.predict(X_values)
+            
+            # Store predictions in DataFrame format
+            predictions.append(pd.DataFrame({
+                'traffic': y_pred,
+                'detid': model_filename.replace('-', '/').replace('.pkl', ''),
+                'interval': X_values['interval'],
+            }))
+        
     return pd.concat(predictions)
 
 
@@ -128,6 +157,20 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
                                  vmax=grid['mean_trafficIndex'].max(),
                                  caption='Mean Traffic Index')
     
+    #colormap = cm.LinearColormap(
+    #    colors=['green', 'yellow', 'red', 'red'],  # Farben: grün -> gelb -> rot (ab 50)
+    #    index=[grid['mean_trafficIndex'].min(), 25, 50, grid['mean_trafficIndex'].max()],
+    #    vmin=grid['mean_trafficIndex'].min(),
+    #    vmax=grid['mean_trafficIndex'].max(),
+    #    caption='Mean Traffic Index')
+    
+    #colormap = cm.StepColormap(
+    #    colors=['green', 'yellow', 'red'],  # Farben: grün -> gelb -> rot
+    #    index=[grid['mean_trafficIndex'].min(), 25, 50, grid['mean_trafficIndex'].max()],
+    #    vmin=grid['mean_trafficIndex'].min(),
+    #    vmax=grid['mean_trafficIndex'].max(),
+    #    caption='Mean Traffic Index')
+        
     
     m.add_child(colormap)  # Add the colormap to the map
 
@@ -202,7 +245,9 @@ def get_weekday_prediction(weekday):
     """
     df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
         
-    df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", weekday)
+    #df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", weekday)
+    df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn", weekday)
+    
     df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
     
     return df_weekday_with_coords
@@ -247,7 +292,7 @@ def saving_baseline_grids():
     
     
     for x in range(7):
-        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", x)
+        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn", x)
         df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
 
         for y in interval_values:

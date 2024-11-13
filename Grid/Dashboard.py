@@ -1,8 +1,3 @@
-# Begin abfrage ob kunde oder dev
-#dev vergleicht mean traffic wert immer noch mit baselane und gibt an wie gut diese model/data oder was man verändert hat performet hat.
-### Zuerst sollte nach dem path zu den CSV gefragt werden, wenn neue Datenkommen, kann dies so angepasst werden. Evtl. mit Standardvalues
-
-
 import dash
 from dash import dcc, html
 from dash.dependencies import Input, Output, State
@@ -13,10 +8,10 @@ import base64
 from io import BytesIO
 
 # Funktion zum Plotten des Grids
-def plot_grid(df_weekday, hour):
+def plot_grid(df_weekday, hour, center, zoom):
     interval_value = hour * 3600  # Umrechnung von Stunden in Sekunden
     grid_data = grid_functions.get_hour_prediction(df_weekday, interval_value)
-    map_object = grid_functions.plot_grid_with_shapes(grid_data, shape='rectangle', city_center=(51.550, -0.021), zoom_start=15)
+    map_object = grid_functions.plot_grid_with_shapes(grid_data, shape='rectangle', city_center=center, zoom_start=zoom)
     return map_object
 
 # Funktion zum Konvertieren der Folium-Karte in HTML
@@ -28,6 +23,8 @@ def map_to_html(map_object):
 app = dash.Dash(__name__)
 
 app.layout = html.Div([
+    dcc.Store(id='map-center', data={'lat': 51.480, 'lng': -0.081}),  # Speichert die Kartenmitte
+    dcc.Store(id='map-zoom', data=12.3),  # Speichert den Zoom-Level
     html.Div(id='map', style={'position': 'absolute', 'top': '0', 'left': '0', 'right': '0', 'bottom': '0', 'z-index': '1'}),
     html.Div(id='weekday-data', style={'display': 'none'}),  # Verstecktes Div-Element zum Speichern der Vorhersage
     html.Div([
@@ -76,12 +73,14 @@ def update_weekday_data(weekday):
 @app.callback(
     Output('map', 'children'),
     [Input('hour-slider', 'value'),
-     Input('weekday-data', 'children')]
+     Input('weekday-data', 'children'),
+     State('map-center', 'data'),
+     State('map-zoom', 'data')]
 )
-def update_map(hour, weekday_data):
+def update_map(hour, weekday_data, center, zoom):
     if weekday_data:
         df_weekday = pd.read_json(weekday_data, orient='split')
-        map_object = plot_grid(df_weekday, hour)
+        map_object = plot_grid(df_weekday, hour, center=(center['lat'], center['lng']), zoom=zoom)
         map_html = map_to_html(map_object)
         return html.Iframe(srcDoc=map_html, width='100%', height='100%')
     return None
