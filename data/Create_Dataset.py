@@ -109,6 +109,11 @@ combine_datapoints_start = time.time()
 dataframe_London_UTD19 = dlib.combine_datapoints(dataframe_London_UTD19, ratio=3600)
 print(f"Combine datapoints took {round(time.time() - combine_datapoints_start)} seconds")
 
+print("Clipping to max traffic value")
+clip_max_traffic_start = time.time()
+dataframe_London_UTD19 = dlib.clip_to_high_values(dataframe_London_UTD19, column='traffic', threshold=200)
+print(f"Clipping to max traffic value took {round(time.time() - clip_max_traffic_start)} seconds")
+
 print("Normalizing traffic")
 normalize_traffic_start = time.time()
 dataframe_London_UTD19 = dlib.normalize_traffic(dataframe_London_UTD19)
