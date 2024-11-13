@@ -56,9 +56,9 @@ app.layout = html.Div([
                 value=12,
                 marks={i: f'{i}:00' for i in range(25)},
                 updatemode='drag',
-                tooltip={"placement": "bottom", "always_visible": True}
+                tooltip={"placement": "bottom", "always_visible": True},
             ),
-        ], style={'margin-top': '10px', 'width': '100%'})
+        ], style={'margin-top': '10px', 'width': '100%', 'color': 'white'}),
     ], style={'position': 'fixed', 'bottom': '0', 'left': '0', 'right': '0', 'width': '100%', 'background-color': 'rgba(0, 0, 0, 0.5)', 'padding': '10px', 'z-index': '1000', 'box-shadow': '0px 0px 10px rgba(0,0,0,0.1)', 'display': 'flex', 'flex-direction': 'column', 'align-items': 'center'})
 ], style={'position': 'relative', 'height': '100vh', 'width': '100vw'})
 

@@ -246,7 +246,7 @@ def get_weekday_prediction(weekday):
     df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
         
     #df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", weekday)
-    df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn", weekday)
+    df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn04", weekday)
     
     df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
     
