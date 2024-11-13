@@ -37,11 +37,6 @@ def train_knn_models(train_data, save_path):
         model_path = f'{save_path}/{sensor}'
         joblib.dump(knn_cv, model_path)
 
-
-import joblib
-import pandas as pd
-import os
-
 def get_knn_prediction(models_path, weekday, interval_values=[
                0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 
                36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 
@@ -62,7 +57,7 @@ def get_knn_prediction(models_path, weekday, interval_values=[
             # Store predictions in DataFrame format
             predictions.append(pd.DataFrame({
                 'traffic': y_pred,
-                'detid': model_filename.replace('-', '/'),
+                'detid': model_filename.replace('-', '/').replace('.pkl', ''),
                 'interval': X_values['interval'],
             }))
         
