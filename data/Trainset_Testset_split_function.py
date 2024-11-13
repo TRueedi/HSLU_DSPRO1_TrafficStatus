@@ -1,6 +1,6 @@
 import os
 import pandas as pd 
-import DataEngineeringLibrary as dlib
+import data_engineering_library as dlib
 
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London_UTD19_Modified.csv
 #sample path C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data
@@ -16,13 +16,13 @@ def get_user_input():
         - splittingMethod (str): The method to use for splitting the data. Options are "Sniper", "Day", or "Week".
         - numberOfSplits (int): The number of splits to perform.
     """
-    pathFrom = input("Enter the path to the file from which the data is loaded: ")
-    pathTo = input("Enter the path to the folder where the data is saved: ")
-    splittingMethod = input("Enter the splitting method (Sniper/Day/Week): ")
-    numberOfSplits = int(input("Enter the number of splits 1 split = 8 min runtime: "))
-    return pathFrom, pathTo, numberOfSplits, splittingMethod
+    path_from = input("Enter the path to the file from which the data is loaded: ")
+    path_to = input("Enter the path to the folder where the data is saved: ")
+    splitting_method = input("Enter the splitting method (Sniper/Day/Week): ")
+    number_of_splits = int(input("Enter the number of splits 1 split = 8 min runtime: "))
+    return path_from, path_to, number_of_splits, splitting_method
 
-def spliter(splittingMethod, dataframeLondonUTD19):
+def spliter(splitting_method, df):
     """
     Splits the given dataframe into train and test sets based on the specified splitting method.
 
@@ -33,12 +33,12 @@ def spliter(splittingMethod, dataframeLondonUTD19):
     Returns:
     tuple: A tuple containing the train set and the test set.
     """
-    if splittingMethod == "Sniper":
-        train_set, test_set = dlib.splitDataSniper(dataframeLondonUTD19)
-    elif splittingMethod == "Day":
-        train_set, test_set = dlib.splitDataDay(dataframeLondonUTD19)
-    elif splittingMethod == "Week":
-        train_set, test_set = dlib.splitDataWeek(dataframeLondonUTD19)
+    if splitting_method == "Sniper":
+        train_set, test_set = dlib.split_data_sniper(df)
+    elif splitting_method == "Day":
+        train_set, test_set = dlib.split_data_day(df)
+    elif splitting_method == "Week":
+        train_set, test_set = dlib.split_data_week(df)
     else:
         print("Invalid splitting method")
         return None, None
@@ -46,22 +46,21 @@ def spliter(splittingMethod, dataframeLondonUTD19):
     return train_set, test_set
 
 # Get user input
-pathFrom, pathTo, numberOfSplits, splittingMethod = get_user_input()
+path_from, path_to, number_of_splits, splitting_method = get_user_input()
 
-print("Loading data from: ", pathFrom)
-dataLondonUTD19 = dlib.loadData(path=pathFrom)
-dataframeLondonUTD19 = pd.DataFrame(dataLondonUTD19)
+print("Loading data from: ", path_from)
+dataframe_London_UTD19 = dlib.load_data(path= path_from)
 print("Data loaded")
-print("Splitting data into ", numberOfSplits, " splits")
+print("Splitting data into ", number_of_splits, " splits")
 
-for i in range(numberOfSplits):
+for i in range(number_of_splits):
     print("Splitting ", i)
-    train_set, test_set = spliter(splittingMethod=splittingMethod, dataframeLondonUTD19=dataframeLondonUTD19)
-    df_test = pd.DataFrame(test_set)
-    df_train = pd.DataFrame(train_set)
-    print("Saving split ", i, " to: ", pathTo)
-    df_test.to_csv(os.path.join(pathTo, f"London_UTD19_test_{splittingMethod}_{i}.csv"), index=False)
-    df_train.to_csv(os.path.join(pathTo, f"London_UTD19_train_{splittingMethod}_{i}.csv"), index=False)
+    df_train, df_test = spliter(splitting_method=splitting_method, df=dataframe_London_UTD19)
+    df_train = df_train.drop(columns=['day'])
+    df_test = df_test.drop(columns=['day'])
+    print("Saving split ", i, " to: ", path_to)
+    df_test.to_csv(os.path.join(path_to, f"London_UTD19_test_{splitting_method}_{i}.csv"), index=False)
+    df_train.to_csv(os.path.join(path_to, f"London_UTD19_train_{splitting_method}_{i}.csv"), index=False)
     print("Split ", i, " done")
 
 print("All splits done")
