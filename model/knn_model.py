@@ -34,7 +34,7 @@ def train_knn_models(train_data, save_path):
         knn_cv.fit(X_train, y_train)
         
         sensor = sensor.replace('/', '-')
-        model_path = f'{save_path}/{sensor}'
+        model_path = f'{save_path}/{sensor}.pkl'
         joblib.dump(knn_cv, model_path)
 
 def get_knn_prediction(models_path, weekday, interval_values=[
