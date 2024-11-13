@@ -5,10 +5,6 @@ import joblib
 import pandas as pd
 import os
 
-
-
-
-
 def train_knn_models(train_data, save_path): 
     weekday_mapping = {
         'Monday': 0,
@@ -20,7 +16,6 @@ def train_knn_models(train_data, save_path):
         'Sunday': 6
     }
     
-    # Parameter grid for KNN
     param_grid = {
         'n_neighbors': [3, 5, 7, 10],
         'weights': ['uniform', 'distance'],
@@ -38,7 +33,6 @@ def train_knn_models(train_data, save_path):
         knn_cv = GridSearchCV(estimator=knn, param_grid=param_grid, cv=5, n_jobs=-1, scoring='neg_mean_absolute_error')
         knn_cv.fit(X_train, y_train)
         
-        # Replace '/' to avoid issues with folder paths
         sensor = sensor.replace('/', '-')
         model_path = f'{save_path}/{sensor}'
         joblib.dump(knn_cv, model_path)
@@ -53,7 +47,6 @@ def get_knn_prediction(models_path, weekday, interval_values=[
                36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 
                68400, 72000, 75600, 79200, 82800]):
     
-    # Create DataFrame with interval and weekday values
     X_values = pd.DataFrame(interval_values, columns=['interval'])
     X_values['weekday'] = weekday
     
@@ -73,7 +66,6 @@ def get_knn_prediction(models_path, weekday, interval_values=[
                 'interval': X_values['interval'],
             }))
         
-    # Concatenate all predictions
     return pd.concat(predictions)
 
 
