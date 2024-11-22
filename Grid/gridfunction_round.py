@@ -7,6 +7,11 @@ import branca.colormap as cm  # Used for color gradient
 import folium
 import geopandas
 
+
+def __init__():
+    pass
+
+
 def grid(df, sensorid_col, trafficIndex_col, shape=0.01):
     """
     Input:
@@ -134,6 +139,7 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
             ).add_to(m)
 
     return m
+
 
 # User input
 htmloutput = input("Enter if you want to save the output as html file (yes/no): ")
