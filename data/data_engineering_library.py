@@ -457,7 +457,7 @@ def drop_false_values_by_date(df, column):
     print(f"Total outliers detected and removed: {total_outliers_count}")
     return filtered_df
 
-def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_points=5000):
+def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, min_data_points=5000):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method and other criteria.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
@@ -479,7 +479,7 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_data_point
         - 'not_enough_data': True if there are not enough data points.
     """
     anomalies_mean_out_of_bound_list = anomalies_mean_out_of_bound(df, column, factor)
-    anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR)
+    anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR, min_range=min_range)
     anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_data_points=min_data_points)
     anomalies = np.concatenate([anomalies_mean_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
@@ -524,29 +524,38 @@ def anomalies_mean_out_of_bound(df, column, factor=3):
 
     return anomalies
 
-def anomalies_IQR_to_small(df, column='traffic', min_IQR=5):
+def anomalies_IQR_to_small(df, column='traffic', min_IQR=5, min_range=20):
     """
-    Identifies 'detid' values in a DataFrame where the Interquartile Range (IQR) of the specified column is below a given threshold.
+    Identifies 'detid' values in a DataFrame where either:
+    - The Interquartile Range (IQR) is below a given threshold
+    - The total range (max-min) is below a given threshold
 
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing traffic data.
-    column (str, optional): The name of the column to calculate the IQR. Default is 'traffic'.
+    column (str, optional): The name of the column to analyze. Default is 'traffic'.
     min_IQR (float, optional): The IQR threshold to check against. Default is 5.
+    min_range (float, optional): The minimum range threshold. Default is 20.
 
     Returns:
-    numpy.ndarray: An array containing the 'detid' values with IQR below the specified threshold.
+    numpy.ndarray: An array containing the 'detid' values that meet both condition.
     """
     
-    def calculate_iqr(group):
+    def calculate_metrics(group):
         Q1 = group[column].quantile(0.25)
         Q3 = group[column].quantile(0.75)
         IQR = Q3 - Q1
-        return IQR
+        total_range = group[column].max() - group[column].min()
+        return pd.Series({'IQR': IQR, 'total_range': total_range})
     
-    iqr_values = df.groupby('detid').apply(calculate_iqr).reset_index(name='IQR')
-    anomalies = iqr_values[iqr_values['IQR'] < min_IQR]['detid'].unique()
-    print(f"Anomalies detected based on IQR too small: {anomalies.size}")
-
+    metrics = df.groupby('detid').apply(calculate_metrics).reset_index()
+    
+    anomalies = metrics[
+        (metrics['IQR'] < min_IQR) & 
+        (metrics['total_range'] < min_range)
+    ]['detid'].unique()
+    
+    print(f"Anomalies detected based on IQR or range conditions: {anomalies.size}")
+    
     return anomalies
 
 def anomalies_not_enough_data(df, column='detid', min_data_points=5000):
@@ -653,7 +662,7 @@ def combine_datapoints(df, fixed_columns = ['interval', 'day', 'detid', 'weekday
     
     return df
 
-def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_columns=['lanes', 'long', 'lat', 'pos', 'length']):
+def merge_dataframes_on_detid(df1, df2, merge_column='detid', include_columns=['lanes', 'long', 'lat', 'pos', 'length', 'fclass']):
     """
     Merge two DataFrames on the specified column and include only the specified columns from the second DataFrame.
 
