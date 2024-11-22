@@ -558,21 +558,42 @@ def anomalies_IQR_to_small(df, column='traffic', min_IQR=5, min_range=20):
     
     return anomalies
 
-def anomalies_not_enough_data(df, column='detid', min_data_points=5000):
+def anomalies_not_enough_data(df, min_days=14, min_daily_records=250):
     """
-    Identifies 'detid' values in a DataFrame that have fewer than a specified number of data points.
-
+    Detects detectors with insufficient data by checking for:
+    - Less than minimum required days
+    - Missing weekdays
+    - Days with too few records
+    
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing traffic data.
-    column (str, optional): The name of the column representing 'detid'. Default is 'detid'.
-    min_data_points (int, optional): The minimum number of data points required to avoid being classified as an anomaly. Default is 5000.
-
+        df (pandas.DataFrame): Input DataFrame with traffic data
+        min_days (int): Minimum number of days required (default: 14)
+        min_daily_records (int): Minimum records per day (default: 250)
+    
     Returns:
-    numpy.ndarray: An array containing 'detid' values with fewer than the specified number of data points.
+        numpy.ndarray: Array of detector IDs that have insufficient data
     """
-    detid_counts = df.groupby(column).size().reset_index(name='count')
-    anomalies = detid_counts[detid_counts['count'] < min_data_points][column].unique()
-    print(f"Anomalies detected based on not enough data: {anomalies.size}")
+    detectors = df['detid'].unique()
+    anomalous_detids = []
+    
+    for detid in detectors:
+        detector_data = df[df['detid'] == detid]
+        
+        # Count records per day
+        daily_counts = detector_data.groupby('day').size()
+        valid_days = daily_counts[daily_counts >= min_daily_records].index
+        cleaned_data = detector_data[detector_data['day'].isin(valid_days)]
+        
+        # Check criteria
+        if len(valid_days) < min_days or len(cleaned_data['weekday'].unique()) < 7:
+            anomalous_detids.append(detid)
+    
+    anomalies = np.array(anomalous_detids)
+    
+    # Print summary
+    print(f"Original detectors: {len(detectors)}")
+    print(f"Anomalies detected: {len(anomalies)}")
+    print(f"Detectors remaining: {len(detectors) - len(anomalies)}")
     
     return anomalies
 
