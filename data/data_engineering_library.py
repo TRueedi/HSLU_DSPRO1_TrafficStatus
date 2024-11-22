@@ -484,6 +484,8 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, 
     anomalies = np.concatenate([anomalies_mean_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
 
+    print(f"Total anomalies detected: {anomalies.size}")
+
     dataframe_anomalies = pd.DataFrame(anomalies, columns=['detid'])
 
     dataframe_anomalies['mean_out_of_bound'] = dataframe_anomalies['detid'].isin(anomalies_mean_out_of_bound_list)
