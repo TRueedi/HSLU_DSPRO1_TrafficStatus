@@ -457,7 +457,7 @@ def drop_false_values_by_date(df, column):
     print(f"Total outliers detected and removed: {total_outliers_count}")
     return filtered_df
 
-def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, min_data_points=5000):
+def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, min_days=14, min_daily_records=250):
     """
     Detects anomalies in traffic data based on the Interquartile Range (IQR) method and other criteria.
     This function groups the input DataFrame by 'detid' and calculates the mean traffic for each group.
@@ -480,7 +480,7 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, 
     """
     anomalies_mean_out_of_bound_list = anomalies_mean_out_of_bound(df, column, factor)
     anomalies_IQR_to_small_list = anomalies_IQR_to_small(df, column, min_IQR=min_IQR, min_range=min_range)
-    anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_data_points=min_data_points)
+    anomalies_not_enough_data_list = anomalies_not_enough_data(df, min_days=min_days, min_daily_records=min_daily_records)
     anomalies = np.concatenate([anomalies_mean_out_of_bound_list, anomalies_IQR_to_small_list, anomalies_not_enough_data_list])
     anomalies = np.unique(anomalies)
 
@@ -560,10 +560,7 @@ def anomalies_IQR_to_small(df, column='traffic', min_IQR=5, min_range=20):
 
 def anomalies_not_enough_data(df, min_days=14, min_daily_records=250):
     """
-    Detects detectors with insufficient data by checking for:
-    - Less than minimum required days
-    - Missing weekdays
-    - Days with too few records
+    Detects detectors with insufficient data using vectorized operations.
     
     Parameters:
         df (pandas.DataFrame): Input DataFrame with traffic data
@@ -573,27 +570,23 @@ def anomalies_not_enough_data(df, min_days=14, min_daily_records=250):
     Returns:
         numpy.ndarray: Array of detector IDs that have insufficient data
     """
-    detectors = df['detid'].unique()
-    anomalous_detids = []
+    # Set detid as index for faster groupby operations
+    df = df.set_index('detid')
     
-    for detid in detectors:
-        detector_data = df[df['detid'] == detid]
-        
-        # Count records per day
-        daily_counts = detector_data.groupby('day').size()
-        valid_days = daily_counts[daily_counts >= min_daily_records].index
-        cleaned_data = detector_data[detector_data['day'].isin(valid_days)]
-        
-        # Check criteria
-        if len(valid_days) < min_days or len(cleaned_data['weekday'].unique()) < 7:
-            anomalous_detids.append(detid)
+    # Calculate daily records count using vectorized operations
+    daily_counts = df.groupby(['detid', 'day']).size().unstack()
+    valid_days = (daily_counts >= min_daily_records).sum(axis=1)
     
-    anomalies = np.array(anomalous_detids)
+    # Calculate unique weekdays per detector
+    weekday_counts = df.groupby('detid')['weekday'].nunique()
     
-    # Print summary
-    print(f"Original detectors: {len(detectors)}")
-    print(f"Anomalies detected: {len(anomalies)}")
-    print(f"Detectors remaining: {len(detectors) - len(anomalies)}")
+    # Find anomalous detectors using boolean indexing
+    anomalies = daily_counts[
+        (valid_days < min_days) | 
+        (weekday_counts < 7)
+    ].index.values
+    
+    print(f"Anomalies not enough data: {len(anomalies)}")
     
     return anomalies
 
