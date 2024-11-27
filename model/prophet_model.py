@@ -25,7 +25,6 @@ def unfold_weekday_to_interval(df):
     weekday_to_num = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
     seconds_per_day = 86400
     df['interval'] = df.apply(lambda row: row['interval'] + (weekday_to_num[row['weekday']] * seconds_per_day), axis=1)
-    df = df.drop(columns=['weekday'])
     return df
 
 def onehot_encode_categorical(df, column_name):
@@ -132,7 +131,7 @@ def train_prophet_model_per_sensor(train_data, save_path):
         
         sensor_data = train_data_cp[train_data_cp['detid'] == detid]
         
-        model = Prophet(changepoint_prior_scale=0.01)
+        model = Prophet(changepoint_prior_scale=0.5, n_changepoints=50)
         model.fit(sensor_data[['ds', 'y']])
         
         detid_string = detid.replace('/', '-')
@@ -140,7 +139,8 @@ def train_prophet_model_per_sensor(train_data, save_path):
         joblib.dump(model, model_path)
         
         counter += 1
-        print(f'Sensor {detid} training complete. {counter}/{sensor_amout} done.')
+        if counter % 100 == 0:
+            print(f'Sensor {detid} training complete. {counter}/{sensor_amout} done.')
         
         
 def evaluate_prophet_models_per_sensor(test_data, save_path):
@@ -217,7 +217,7 @@ def get_prediction_per_sensor(model_folder_path, weekday):
         future = get_data_weekday[['ds']]
         forecast = model.predict(future)
         forecast['detid'] = detid
-        forecasts.append(forecast[['detid', 'ds', 'yhat']])
+        forecasts.append(forecast[['detid', 'ds', 'yhat', 'yhat_lower', 'yhat_upper']])
         
         
     forecasts_df = pd.concat(forecasts, ignore_index=True)
