@@ -93,6 +93,7 @@ def evaluate_random_baseline_models(test_data, models_path):
 
     mae_scores = []
     mse_scores = []
+    r2_scores = []
 
     for sensor, sensor_data in test_data.groupby('detid'):
         model_filename = f'{sensor.replace("/", "-")}_baseline'
@@ -110,19 +111,23 @@ def evaluate_random_baseline_models(test_data, models_path):
             
             mae = mean_absolute_error(merged_data['traffic_actual'], merged_data['traffic_pred'])
             mse = mean_squared_error(merged_data['traffic_actual'], merged_data['traffic_pred'])
+            r2 = r2_score(merged_data['traffic_actual'], merged_data['traffic_pred'])
             
             mae_scores.append(mae)
             mse_scores.append(mse)
+            r2_scores.append(r2)
         
         else:
             print(f"Baseline model for sensor {sensor} not found in {models_path}")
     
     average_mae = sum(mae_scores) / len(mae_scores) if mae_scores else None
     average_mse = sum(mse_scores) / len(mse_scores) if mse_scores else None
+    average_r2 = sum(r2_scores) / len(r2_scores) if r2_scores else None
 
     evaluation_results = {
         'Average MAE': average_mae,
         'Average MSE': average_mse,
+        'Average R2': average_r2,
     }
     
     return pd.DataFrame(evaluation_results, index=[0])
