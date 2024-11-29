@@ -54,19 +54,20 @@ def split_data_sniper(df, samples_per_day = 2):
 
 def split_data_day(df, number_of_test_days=1):
     """
-    Splits the DataFrame into training and testing sets based on days.
+    Split the DataFrame into training and testing sets based on days.
 
-    This function groups the DataFrame by 'detid', then randomly selects a specified number
-    of days for each sensor to create the test set. The remaining data forms the training set.
+    This function groups the DataFrame by 'detid' and randomly selects a specified number
+    of days for each sensor to create the test set. The remaining data is used for the 
+    training set. It ensures that the training set contains all seven weekdays for each sensor.
 
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing the data.
-    number_of_test_days (int): The number of days to randomly select for the test set. Default is 1.
+        df (pandas.DataFrame): Input DataFrame containing sensor data.
+        number_of_test_days (int, optional): Number of days to select for the test set. Defaults to 1.
 
     Returns:
-    tuple: A tuple containing two pandas DataFrames:
-        - train_set (pandas.DataFrame): The training set.
-        - test_set (pandas.DataFrame): The testing set.
+        tuple:
+            train_set (pandas.DataFrame): DataFrame containing the training data.
+            test_set (pandas.DataFrame): DataFrame containing the testing data.
     """
     test_set_list = []
     train_set_list = []
@@ -76,10 +77,16 @@ def split_data_day(df, number_of_test_days=1):
 
     for sensor, group in grouped:
         # Randomly select testDays days
-        days = group['day'].unique()
-        test_days = np.random.choice(days, number_of_test_days, replace=False)
-        test_indices = group.index[group['day'].isin(test_days)]
-        
+        while True:
+            days = group['day'].unique()
+            weekdays_check_list = group.copy()
+            test_days = np.random.choice(days, number_of_test_days, replace=False)
+            test_indices = group.index[group['day'].isin(test_days)]
+            weekdays_check_list = weekdays_check_list[~weekdays_check_list['day'].isin(test_days)]
+
+            if weekdays_check_list['weekday'].nunique() == 7:
+                break
+            
         # Split into test and train sets
         test_set_list.append(group.loc[test_indices])
         train_set_list.append(group.drop(test_indices))
