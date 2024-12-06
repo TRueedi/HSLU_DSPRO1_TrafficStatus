@@ -299,3 +299,131 @@ def saving_baseline_grids():
             df_real = df_weekday_with_coords[df_weekday_with_coords['interval'] == y]
             grid_data = grid(df_real, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
             grid_data.to_csv(f"baselinegrids/{x}_{y}.csv", index=False)
+
+def advanced_grid(df, sensorid_col, trafficIndex_col, shape=0.01):
+    """
+    Create a grid with the mean trafficIndex for each grid cell. The grid is filled with all possible grid cells
+    based on the minimum and maximum longitude and latitude in the input DataFrame.
+    Input:
+    - df: DataFrame containing sensor data with longitude and latitude
+    - sensorid_col: column name for sensor ids
+    - trafficIndex_col: column name for traffic indices (e.g. length or traffic volume)
+    - shape: the size of the grid (diameter of the cell)
+    
+    Output:
+    - A DataFrame with the grid and the mean trafficIndex for each grid cell.
+    """
+    
+    decimal_places = abs(int(round(-np.log10(shape), 0)))
+
+    df['long_rounded'] = df['long_rounded'].round(decimal_places)
+    df['lat_rounded'] = df['lat_rounded'].round(decimal_places)
+    
+    df['grid_id'] = df['long_rounded'].astype(str) + "_" + df['lat_rounded'].astype(str)
+    
+    grid = df.groupby('grid_id').agg(
+        mean_trafficIndex=(trafficIndex_col, 'mean'),
+        sensors_in_grid=(sensorid_col, 'count'),
+        long_rounded=('long_rounded', 'first'),
+        lat_rounded=('lat_rounded', 'first')
+    ).reset_index()
+    
+    complete_grid = create_complete_grid(df, shape)
+    
+    grid_filled = complete_grid.merge(grid[['grid_id', 'mean_trafficIndex', 'sensors_in_grid']], on='grid_id', how='left')
+    grid_filled['mean_trafficIndex'] = grid_filled['mean_trafficIndex_y']
+    grid_filled.drop(columns=['mean_trafficIndex_y', 'mean_trafficIndex_x'], inplace=True)
+    
+    grid_complete = fill_nan_with_neighbors(grid_filled)
+    
+    
+       
+    return grid_complete
+
+def fill_nan_with_neighbors(grid, radius=0.01, max_iterations=3, default_value=5.5):
+    """
+    Fills NaN values in the 'mean_trafficIndex' column iteratively with the mean of the neighbors
+    within the radius. Remaining NaN values after max_iterations are assigned a default value.
+    
+    Parameters:
+    - grid (pd.DataFrame): DataFrame containing the grid data.
+    - radius (float): The radius to consider for the neighbors.
+    - max_iterations (int): Maximum number of iterations to try filling NaN values.
+    - default_value (float): Value to assign to remaining NaN values after max_iterations.
+    
+    Returns:
+    - pd.DataFrame: DataFrame with NaN values filled.
+    """
+    df = grid.copy()
+    
+    def get_neighbors_mean(lat, long):
+        """
+        Returns the mean of the neighbors within the radius.
+        """
+        neighbors = df[
+            (df['lat_rounded'] >= lat - radius) & (df['lat_rounded'] <= lat + radius) &
+            (df['long_rounded'] >= long - radius) & (df['long_rounded'] <= long + radius)
+        ]
+        valid_neighbors = neighbors['mean_trafficIndex'].dropna()
+        return valid_neighbors.mean() if not valid_neighbors.empty else np.nan
+
+    for iteration in range(max_iterations):
+        # Identify rows with NaN in 'mean_trafficIndex'
+        nan_rows = df['mean_trafficIndex'].isna()
+        if not nan_rows.any():
+            # If there are no NaN values left, exit the loop
+            break
+        
+        # Update NaN values with the mean of their neighbors
+        df.loc[nan_rows, 'mean_trafficIndex'] = df[nan_rows].apply(
+            lambda row: get_neighbors_mean(row['lat_rounded'], row['long_rounded']), axis=1
+        )
+    
+    # Assign default value to any remaining NaN values
+    df['mean_trafficIndex'].fillna(default_value, inplace=True)
+    return df
+
+def create_complete_grid(df, shape=0.01):
+    """
+    Creates a complete grid based on the minimum and maximum longitude and latitude in the input DataFrame.
+    Input:
+    - df: DataFrame containing sensor data with longitude and latitude
+    - shape: the size of the grid (diameter of the cell)
+    
+    Output:
+    - A DataFrame with the complete grid and the mean trafficIndex for each grid cell.
+    """
+    
+    decimal_places = abs(int(round(-np.log10(shape), 0)))
+    
+    df['long_rounded'] = df['long_rounded'].round(decimal_places)
+    df['lat_rounded'] = df['lat_rounded'].round(decimal_places)
+    
+    # min max values
+    min_long = df['long_rounded'].min()
+    max_long = df['long_rounded'].max()
+    min_lat = df['lat_rounded'].min()
+    max_lat = df['lat_rounded'].max()
+    
+    # Grid from min to max in steps of shape 
+    np.set_printoptions(suppress=True) 
+    all_longs = np.arange(min_long, max_long + shape, shape)
+    all_lats = np.arange(min_lat, max_lat, shape)
+    
+    print(all_longs.shape)
+    print(all_lats.shape)
+    
+    # Create a complete grid
+    complete_grid = pd.MultiIndex.from_product([all_longs, all_lats], names=['long_rounded', 'lat_rounded']).to_frame(index=False)
+    print(complete_grid)
+    
+    # Create id for each grid cell
+    complete_grid['grid_id'] = complete_grid.apply(
+        lambda row: f"{round(row['long_rounded'], decimal_places)}_{round(row['lat_rounded'], decimal_places)}", axis=1
+    )
+    print(complete_grid)
+    
+    # set mean_trafficIndex to None
+    complete_grid['mean_trafficIndex'] = None
+    
+    return complete_grid
