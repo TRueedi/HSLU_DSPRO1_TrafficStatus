@@ -73,9 +73,10 @@ def grid(df, sensorid_col, trafficIndex_col, shape=0.01):
     Output:
     - A DataFrame with the grid and the mean trafficIndex for each grid cell.
     """
-    # 1. Round the coordinates to a precision based on 'shape' (grid diameter)
-    df['long_rounded'] = (df['long'] // shape) * shape
-    df['lat_rounded'] = (df['lat'] // shape) * shape
+    decimal_places = abs(int(round(-np.log10(shape), 0)))
+    
+    df['long_rounded'] = df['long'].round(decimal_places)
+    df['lat_rounded'] = df['lat'].round(decimal_places)
     
     # 2. Create a grid ID based on the rounded coordinates
     df['grid_id'] = df['long_rounded'].astype(str) + "_" + df['lat_rounded'].astype(str)
@@ -254,7 +255,7 @@ def get_weekday_prediction(weekday):
 
 
 
-def get_hour_prediction(df, interval_value):
+def get_hour_prediction(df, interval_value, mode, shape=0.01):
     """
     This function generates the baseline grids for all weekdays and intervals.
     possible Intervalls between: [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]
@@ -263,7 +264,13 @@ def get_hour_prediction(df, interval_value):
     """
     df_real = df[df['interval'] == interval_value]
     grid_data = grid(df_real, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
-    return grid_data
+    
+    if mode == 'traffic':
+        return grid_data
+    elif mode == 'traffic_complete':
+        complete_grid = create_complete_grid(df, shape)
+        return grid_data, complete_grid
+
 
 
 
@@ -300,7 +307,7 @@ def saving_baseline_grids():
             grid_data = grid(df_real, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
             grid_data.to_csv(f"baselinegrids/{x}_{y}.csv", index=False)
 
-def advanced_grid(df, sensorid_col, trafficIndex_col, shape=0.01):
+def advanced_grid(grid_data, complete_grid, sensorid_col, trafficIndex_col, shape=0.01):
     """
     Create a grid with the mean trafficIndex for each grid cell. The grid is filled with all possible grid cells
     based on the minimum and maximum longitude and latitude in the input DataFrame.
@@ -313,22 +320,7 @@ def advanced_grid(df, sensorid_col, trafficIndex_col, shape=0.01):
     Output:
     - A DataFrame with the grid and the mean trafficIndex for each grid cell.
     """
-    
-    decimal_places = abs(int(round(-np.log10(shape), 0)))
-
-    df['long_rounded'] = df['long_rounded'].round(decimal_places)
-    df['lat_rounded'] = df['lat_rounded'].round(decimal_places)
-    
-    df['grid_id'] = df['long_rounded'].astype(str) + "_" + df['lat_rounded'].astype(str)
-    
-    grid = df.groupby('grid_id').agg(
-        mean_trafficIndex=(trafficIndex_col, 'mean'),
-        sensors_in_grid=(sensorid_col, 'count'),
-        long_rounded=('long_rounded', 'first'),
-        lat_rounded=('lat_rounded', 'first')
-    ).reset_index()
-    
-    complete_grid = create_complete_grid(df, shape)
+    grid = grid_data.copy()
     
     grid_filled = complete_grid.merge(grid[['grid_id', 'mean_trafficIndex', 'sensors_in_grid']], on='grid_id', how='left')
     grid_filled['mean_trafficIndex'] = grid_filled['mean_trafficIndex_y']
@@ -336,8 +328,6 @@ def advanced_grid(df, sensorid_col, trafficIndex_col, shape=0.01):
     
     grid_complete = fill_nan_with_neighbors(grid_filled)
     
-    
-       
     return grid_complete
 
 def fill_nan_with_neighbors(grid, radius=0.01, max_iterations=3, default_value=5.5):
@@ -396,8 +386,8 @@ def create_complete_grid(df, shape=0.01):
     
     decimal_places = abs(int(round(-np.log10(shape), 0)))
     
-    df['long_rounded'] = df['long_rounded'].round(decimal_places)
-    df['lat_rounded'] = df['lat_rounded'].round(decimal_places)
+    df['long_rounded'] = df['long'].round(decimal_places)
+    df['lat_rounded'] = df['lat'].round(decimal_places)
     
     # min max values
     min_long = df['long_rounded'].min()
@@ -407,23 +397,62 @@ def create_complete_grid(df, shape=0.01):
     
     # Grid from min to max in steps of shape 
     np.set_printoptions(suppress=True) 
-    all_longs = np.arange(min_long, max_long + shape, shape)
-    all_lats = np.arange(min_lat, max_lat, shape)
+    all_longs = np.arange(min_long, max_long, shape)
+    all_lats = np.arange(min_lat, max_lat + shape, shape)
     
-    print(all_longs.shape)
-    print(all_lats.shape)
     
     # Create a complete grid
     complete_grid = pd.MultiIndex.from_product([all_longs, all_lats], names=['long_rounded', 'lat_rounded']).to_frame(index=False)
-    print(complete_grid)
     
     # Create id for each grid cell
     complete_grid['grid_id'] = complete_grid.apply(
         lambda row: f"{round(row['long_rounded'], decimal_places)}_{round(row['lat_rounded'], decimal_places)}", axis=1
     )
-    print(complete_grid)
     
     # set mean_trafficIndex to None
     complete_grid['mean_trafficIndex'] = None
     
     return complete_grid
+
+
+def plot_sensors_as_points(sensorid_col='detid', trafficIndex_col=None, city_center=(51.5074, -0.1278), zoom_start=12):
+    """
+    Plot the sensor locations as points (CircleMarkers) on a map of London.
+    
+    Args:
+    - lat_col: Name of the column containing latitude values (default: 'lat').
+    - long_col: Name of the column containing longitude values (default: 'long').
+    - sensorid_col: Name of the column containing sensor IDs (default: 'detid').
+    - trafficIndex_col: Optional. Name of the column containing traffic index values (for popup display).
+    - city_center: Tuple of (latitude, longitude) for the center of the map (default is central London).
+    - zoom_start: Initial zoom level for the map (default is 12).
+    
+    Output:
+    - Folium map with sensor locations plotted as CircleMarkers (points).
+    """
+    df = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\London_UTD19_modified_22.11.2024.csv")
+    
+    df.drop_duplicates(subset='detid', keep='first', inplace=True)
+    # Create a Folium map centered around London
+    m = folium.Map(location=city_center, zoom_start=zoom_start)
+
+    # Plot each sensor as a point on the map using CircleMarker
+    for _, row in df.iterrows():
+        
+        # Popup text with sensor id and optional traffic index
+        popup_text = f"Sensor ID: {row[sensorid_col]}"
+        if trafficIndex_col:
+            popup_text += f"<br>Traffic Index: {row[trafficIndex_col]}"
+        
+        # Add a CircleMarker for each sensor
+        folium.CircleMarker(
+            location=[row['lat'], row['long']],
+            radius=3,  # Size of the circle (points)
+            color='blue',  # Outline color
+            fill=True,
+            fill_color='blue',  # Fill color of the point
+            fill_opacity=0.7,
+            popup=popup_text
+        ).add_to(m)
+
+    return m
