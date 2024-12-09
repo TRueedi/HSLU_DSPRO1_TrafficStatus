@@ -8,10 +8,21 @@ import base64
 from io import BytesIO
 
 # Funktion zum Plotten des Grids
-def plot_grid(df_weekday, hour, center, zoom):
+def plot_grid(df_weekday, hour, mode, center, zoom):
     interval_value = hour * 3600  # Umrechnung von Stunden in Sekunden
-    grid_data = grid_functions.get_hour_prediction(df_weekday, interval_value)
-    map_object = grid_functions.plot_grid_with_shapes(grid_data, shape='rectangle', city_center=center, zoom_start=zoom)
+    
+    if mode == 'sensors':
+        map_object = grid_functions.plot_sensors_as_points(city_center=center, zoom_start=zoom)
+    elif mode == 'traffic':
+        grid_data = grid_functions.get_hour_prediction(df_weekday, interval_value, mode, shape=0.01)
+        map_object = grid_functions.plot_grid_with_shapes(grid_data, shape='rectangle', city_center=center, zoom_start=zoom)
+    elif mode == 'traffic_complete':
+        grid_data, complete_grid = grid_functions.get_hour_prediction(df_weekday, interval_value, mode, shape=0.01)
+        advanced_grid = grid_functions.advanced_grid(grid_data, complete_grid, sensorid_col='detid', trafficIndex_col='traffic', shape=0.01)
+        map_object = grid_functions.plot_grid_with_shapes(advanced_grid, shape='rectangle', city_center=center, zoom_start=zoom)
+    else:
+        raise ValueError("Invalid mode. Choose 'sensors', 'traffic' or 'traffic_complete'.")
+    
     return map_object
 
 # Funktion zum Konvertieren der Folium-Karte in HTML
@@ -28,7 +39,20 @@ app.layout = html.Div([
     html.Div(id='map', style={'position': 'absolute', 'top': '0', 'left': '0', 'right': '0', 'bottom': '0', 'z-index': '1'}),
     html.Div(id='weekday-data', style={'display': 'none'}),  # Verstecktes Div-Element zum Speichern der Vorhersage
     html.Div([
-        html.H1("Traffic Status", style={'color': 'white', 'text-align': 'center'}),
+        html.H1("Traffic Status", style={'color': 'white', 'margin-right': '10px'}),
+        html.Div([
+            html.Label("Select Mode:", style={'color': 'white', 'margin-top': '10px'}),
+            dcc.RadioItems(
+                id='mode-radio',
+                options=[
+                    {'label': 'Sensors', 'value': 'sensors'},
+                    {'label': 'Traffic grid', 'value': 'traffic'},
+                    {'label': 'Complete Traffic grid', 'value': 'traffic_complete'}
+                ],
+                value='traffic',
+                labelStyle={'display': 'inline-block', 'margin-right': '10px', 'color': 'white'}
+            )
+        ], style={'display': 'flex', 'align-items': 'center'}),
         html.Div([
             html.Label("Select Weekday:", style={'color': 'white', 'margin-right': '10px'}),
             dcc.RadioItems(
@@ -74,13 +98,14 @@ def update_weekday_data(weekday):
     Output('map', 'children'),
     [Input('hour-slider', 'value'),
      Input('weekday-data', 'children'),
+     Input('mode-radio', 'value'),
      State('map-center', 'data'),
      State('map-zoom', 'data')]
 )
-def update_map(hour, weekday_data, center, zoom):
+def update_map(hour, weekday_data, mode, center, zoom):
     if weekday_data:
         df_weekday = pd.read_json(weekday_data, orient='split')
-        map_object = plot_grid(df_weekday, hour, center=(center['lat'], center['lng']), zoom=zoom)
+        map_object = plot_grid(df_weekday, hour, mode, center=(center['lat'], center['lng']), zoom=zoom)
         map_html = map_to_html(map_object)
         return html.Iframe(srcDoc=map_html, width='100%', height='100%')
     return None
