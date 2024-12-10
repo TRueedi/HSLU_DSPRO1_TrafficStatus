@@ -83,21 +83,11 @@ drop_outliers_start = time.time()
 dataframe_London_UTD19 = dlib.drop_outliers(dataframe_London_UTD19, column='traffic', group_by_detid=True, outlier_factor=2)
 print(f"Droping outliers on traffic took {round(time.time() - drop_outliers_start)} seconds")
 
-print("Drop false values")
-drop_false_values_start = time.time()
-dataframe_London_UTD19 = dlib.drop_false_values_by_date(dataframe_London_UTD19, column='traffic')
-#dataframe_London_UTD19 = dlib.drop_false_values(dataframe_London_UTD19, column='traffic', outlier_factor=5)
-print(f"Drop false values took {round(time.time() - drop_false_values_start)} seconds")
-
 print("Detecting anomalies")
 detect_anomalies_start = time.time()
-dataframe_anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, min_IQR=5, min_data_points=4000)
+dataframe_anomalies = dlib.detect_anomalies(dataframe_London_UTD19, column='traffic', factor=3, min_IQR=5, min_days=10, min_daily_records=230)
+dataframe_London_UTD19 = dataframe_London_UTD19[~dataframe_London_UTD19['detid'].isin(dataframe_anomalies['detid'])]
 print(f"Detecting anomalies took {round(time.time() - detect_anomalies_start)} seconds")
-
-print("Handling anomalies")
-handle_anomalies_start = time.time()
-dataframe_London_UTD19, dataframe_anomalies = dlib.handle_anomalies(dataframe_London_UTD19, dataframe_anomalies)
-print(f"Handling anomalies took {round(time.time() - handle_anomalies_start)} seconds")
 
 print("Exporting anomalies to: ", path_to)
 exporting_anomalies_start = time.time()
