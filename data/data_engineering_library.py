@@ -34,19 +34,15 @@ def split_data_sniper(df, samples_per_day = 2):
     test_set_list = []
     train_set_list = []
 
-    # Group by day and sensor, Data should be sorted by day and detid, this is to make sure nothing is mixed up
     grouped = df.groupby(['day', 'detid'])
 
     for (day, sensor), group in grouped:
-        # Randomly select samplesPerDay intervals
         intervals = np.random.choice(range(24), samples_per_day, replace=False) * 3600
         test_indices = group.index[group['interval'].isin(intervals)]
         
-        # Split into test and train sets
         test_set_list.append(group.loc[test_indices])
         train_set_list.append(group.drop(test_indices))
 
-    # Concatenate all collected groups at once
     test_set = pd.concat(test_set_list)
     train_set = pd.concat(train_set_list)
     
@@ -72,11 +68,9 @@ def split_data_day(df, number_of_test_days=1):
     test_set_list = []
     train_set_list = []
 
-    # Group by sensor, Data should be sorted by day and detid, this is to make sure nothing is mixed up
     grouped = df.groupby('detid')
 
     for sensor, group in grouped:
-        # Randomly select testDays days
         while True:
             days = group['day'].unique()
             weekdays_check_list = group.copy()
@@ -87,11 +81,9 @@ def split_data_day(df, number_of_test_days=1):
             if weekdays_check_list['weekday'].nunique() == 7:
                 break
             
-        # Split into test and train sets
         test_set_list.append(group.loc[test_indices])
         train_set_list.append(group.drop(test_indices))
 
-    # Concatenate all collected groups at once
     test_set = pd.concat(test_set_list)
     train_set = pd.concat(train_set_list)
     
@@ -101,39 +93,42 @@ def split_data_week(df, number_of_test_weeks=1):
     """
     Splits the DataFrame into training and testing sets based on weeks.
 
-    This function groups the DataFrame by 'week' and 'detid', then randomly selects a specified number
-    of weeks for each sensor to create the test set. The remaining data forms the training set.
+    Groups the DataFrame by 'detid' and 'week', then randomly selects a specified number
+    of weeks for each sensor to create the test set. Ensures that the remaining data contains
+    at least 5 unique weekdays for the training set.
 
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing the data.
-    number_of_test_weeks (int): The number of weeks to randomly select for the test set. Default is 1.
+        df (pandas.DataFrame): The input DataFrame containing the data.
+        number_of_test_weeks (int, optional): Number of weeks to randomly select for the test set. Defaults to 1.
 
     Returns:
-    tuple: A tuple containing two pandas DataFrames:
-        - train_set (pandas.DataFrame): The training set.
-        - test_set (pandas.DataFrame): The testing set.
+        tuple:
+            - train_set (pandas.DataFrame): The training dataset.
+            - test_set (pandas.DataFrame): The testing dataset.
     """
     test_set_list = []
     train_set_list = []
 
-    # Ensure the 'day' column is in datetime format and create a 'week' column
-    df['day'] = pd.to_datetime(df['day'])
+    df['day'] = pd.to_datetime(df['day']) # Ensure 'day' column is in datetime format
     df['week'] = df['day'].dt.isocalendar().week
 
-    # Group by sensor, Data should be sorted by week and detid, this is to make sure nothing is mixed up
     grouped = df.groupby('detid')
 
     for sensor, group in grouped:
-        # Randomly select testWeeks weeks
-        weeks = group['week'].unique()
-        test_weeks = np.random.choice(weeks, number_of_test_weeks, replace=False)
-        test_indices = group.index[group['week'].isin(test_weeks)]
+        while True:
+            weeks = group['week'].unique()
+            weekdays_check_list = group.copy()
+            test_weeks = np.random.choice(weeks, number_of_test_weeks, replace=False)
+            test_indices = group.index[group['week'].isin(test_weeks)]
+            weekdays_check_list = weekdays_check_list[~weekdays_check_list['week'].isin(test_weeks)]
+
+            if weekdays_check_list['weekday'].nunique() >= 5:
+                    break
         
-        # Split into test and train sets
         test_set_list.append(group.loc[test_indices])
         train_set_list.append(group.drop(test_indices))
 
-    # Concatenate all collected groups at once
+
     test_set = pd.concat(test_set_list)
     train_set = pd.concat(train_set_list)
     
@@ -181,7 +176,7 @@ def calculate_traffic_speed(df, flow_column='flow', occ_column='occ', traffic_co
     Returns:
     pandas.DataFrame: The DataFrame with the new traffic speed column added.
     """
-    df[occ_column] = df[occ_column].clip(lower=min_occ_value)
+    df[occ_column] = df[occ_column].clip(lower=min_occ_value) # Set minimum occupancy value to prevent division by zero
     
     df[traffic_column] = df[flow_column] * df[occ_column]
     return df
@@ -192,6 +187,8 @@ def calculate_interval_stats(group, column, num_intervals):
 
     This function divides the provided group into a specified number of intervals and calculates
     the mean, first quartile (Q1), third quartile (Q3), and IQR for each interval of the specified column.
+
+    This function is used for the clipping outliers function.
 
     Parameters:
         group (pandas.DataFrame): The DataFrame group to process.
@@ -212,7 +209,6 @@ def calculate_interval_stats(group, column, num_intervals):
         end_idx = (i + 1) * interval_size if i < num_intervals - 1 else len(group)
         interval_data = group.iloc[start_idx:end_idx][column]
         
-        # Calculate interval statistics
         interval_mean = interval_data.mean()
         Q1 = interval_data.quantile(0.25)
         Q3 = interval_data.quantile(0.75)
@@ -231,6 +227,8 @@ def clip_group(group, column, outlier_factor, num_intervals):
     the mean and Interquartile Range (IQR) for each interval of the specified column.
     Outliers are identified based on the interval-specific IQR bounds and are replaced with
     the corresponding interval mean.
+
+    Depends on the calculate_interval_stats function.
 
     Parameters:
         group (pandas.DataFrame): The DataFrame group to process.
@@ -276,6 +274,10 @@ def clip_outliers(df, column, group_by_detid=False, outlier_factor=3, num_interv
     Outliers are determined based on the interquartile range (IQR) and replaced with the mean value
     of their respective interval.
 
+    Dependecies:
+    - clip_group
+    - calculate_interval_stats
+
     Parameters:
     df (pandas.DataFrame): The input DataFrame containing the data.
     column (str): The name of the column to process for outliers.
@@ -309,6 +311,9 @@ def drop_outliers(df, column, group_by_detid=True, outlier_factor=3):
     """
     Removes outliers from a DataFrame based on the Interquartile Range (IQR) method.
     This function can optionally group the DataFrame by 'detid' before removing outliers.
+
+    Dependencies:
+    - drop_group
 
     Parameters:
         df (pandas.DataFrame): A DataFrame containing traffic data with at least the specified column.
@@ -397,12 +402,12 @@ def drop_false_values(df, column, outlier_factor=5):
     total_outliers_count = 0
 
     def drop_group_by_count(group, column, outlier_factor):
-        nonlocal total_outliers_count
+        nonlocal total_outliers_count 
+
         # Count the occurrences of each unique value in the specified column
         value_counts = group[column].value_counts().reset_index()
         value_counts.columns = [column, 'count']
         
-        # Calculate Q1, Q3, and IQR of the value counts
         Q1 = value_counts['count'].quantile(0.25)
         Q3 = value_counts['count'].quantile(0.75)
         IQR = Q3 - Q1
@@ -495,6 +500,7 @@ def detect_anomalies(df, column = 'traffic', factor=3, min_IQR=5, min_range=20, 
 
     dataframe_anomalies = pd.DataFrame(anomalies, columns=['detid'])
 
+    # Create boolean columns for each type of anomaly
     dataframe_anomalies['mean_out_of_bound'] = dataframe_anomalies['detid'].isin(anomalies_mean_out_of_bound_list)
     dataframe_anomalies['IQR_to_small'] = dataframe_anomalies['detid'].isin(anomalies_IQR_to_small_list)
     dataframe_anomalies['not_enough_data'] = dataframe_anomalies['detid'].isin(anomalies_not_enough_data_list)
@@ -519,7 +525,6 @@ def anomalies_mean_out_of_bound(df, column, factor=3):
     # Group by 'detid' and calculate the mean of the specified column
     temp_df = df.groupby('detid')[column].mean().reset_index()
     
-    # Calculate Q1, Q3, and IQR
     Q1 = temp_df[column].quantile(0.25)
     Q3 = temp_df[column].quantile(0.75)
     IQR = Q3 - Q1
@@ -582,11 +587,9 @@ def anomalies_not_enough_data(df, min_days=14, min_daily_records=250):
     # Set detid as index for faster groupby operations
     df = df.set_index('detid')
     
-    # Calculate daily records count using vectorized operations
     daily_counts = df.groupby(['detid', 'day']).size().unstack()
     valid_days = (daily_counts >= min_daily_records).sum(axis=1)
     
-    # Calculate unique weekdays per detector
     weekday_counts = df.groupby('detid')['weekday'].nunique()
     
     # Find anomalous detectors using boolean indexing
@@ -619,12 +622,12 @@ def handle_anomalies(df, anomalies_df):
     handled_anomalies_df = handle_detectors_with_bad_days(df, anomalies_df)
 
     handled_anomalies_df = handled_anomalies_df[
-    handled_anomalies_df[['mean_out_of_bound', 'IQR_to_small', 'not_enough_data']].any(axis=1)
+        handled_anomalies_df[['mean_out_of_bound', 'IQR_to_small', 'not_enough_data']].any(axis=1)
     ]
     df = df[~df['detid'].isin(handled_anomalies_df['detid'])]
     print(f"Total amount of dropeed anomalies: {len(handled_anomalies_df)}")
     
-    return df,handled_anomalies_df
+    return df, handled_anomalies_df
 
 def handle_detectors_with_bad_days(df, anomalies_df):
     """
@@ -747,18 +750,19 @@ def normalize_traffic(df, traffic_column='traffic', normalized_range=(0, 99)):
     df[traffic_column] = ((df[traffic_column] - min_traffic) / (max_traffic - min_traffic)) * (max_range - min_range) + min_range
     return df
 
-def final_process_dataframe(df):
+def final_process_dataframe(df, columns_to_drop = ["lanes", "occ", "flow"]):
     """
-    Convert the scaled values by rounding to the nearest integer, fill NaN values with 0, and drop specified columns.
+    Processes the DataFrame by rounding the 'traffic' column, handling missing values, and dropping specified columns.
 
     Parameters:
-        df (pandas.DataFrame): The input DataFrame.
+        df (pandas.DataFrame): The input DataFrame containing traffic data.
+        columns_to_drop (list of str, optional): List of column names to remove from the DataFrame.
+            Defaults to ["lanes", "occ", "flow"].
 
     Returns:
-        pandas.DataFrame: The modified DataFrame.
+        pandas.DataFrame: The modified DataFrame with the 'traffic' column rounded to the nearest integer,
+        NaN values filled with 0, and specified columns removed.
     """
-    columns_to_drop = ["lanes", "occ", "flow"]
-    
     df['traffic'] = df['traffic'].fillna(0).round().astype(int)
     
     df_modified = df.drop(columns_to_drop, axis=1)
