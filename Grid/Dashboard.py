@@ -41,6 +41,20 @@ app.layout = html.Div([
     html.Div([
         html.H1("Traffic Status", style={'color': 'white', 'margin-right': '10px'}),
         html.Div([
+            html.Label("Select Model:", style={'color': 'white', 'margin-right': '10px'}),
+            dcc.RadioItems(
+                id='model-radio',
+                options=[
+                    {'label': 'Baseline', 'value': 'random'},
+                    {'label': 'knn', 'value': 'knn'},
+                    {'label': 'rfr', 'value': 'rfr'},
+                    {'label': 'prophet', 'value': 'prophet'}
+                ],
+                value='knn',
+                labelStyle={'display': 'inline-block', 'margin-right': '10px', 'color': 'white'}
+            )
+        ], style={'display': 'flex', 'align-items': 'center'}),
+        html.Div([
             html.Label("Select Mode:", style={'color': 'white', 'margin-top': '10px'}),
             dcc.RadioItems(
                 id='mode-radio',
@@ -88,10 +102,11 @@ app.layout = html.Div([
 
 @app.callback(
     Output('weekday-data', 'children'),
-    Input('weekday-radio', 'value')
+    Input('weekday-radio', 'value'),
+    Input('model-radio', 'value')
 )
-def update_weekday_data(weekday):
-    df_weekday = grid_functions.get_weekday_prediction(weekday)
+def update_weekday_data(weekday, model):
+    df_weekday = grid_functions.get_weekday_prediction(weekday, model)
     return df_weekday.to_json(date_format='iso', orient='split')
 
 @app.callback(
