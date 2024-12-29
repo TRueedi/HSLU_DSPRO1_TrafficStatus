@@ -7,6 +7,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
 import re
+import model_functions as mf
 
 def onehot_encode_categorical(df, column_name):
     """
@@ -116,7 +117,7 @@ def train_prophet_model(train_data, save_path):
     
     train_data_cp = train_data.copy()
     train_data_enc, le = label_encode_categorical(train_data_cp, 'detid')
-    train_data_enc = unfold_weekday_to_interval(train_data_enc)
+    train_data_enc = mf.unfold_weekday_to_interval(train_data_enc)
     train_data_enc = interval_to_datetime(train_data_enc, 'interval')
     train_data_enc = train_data_enc.rename(columns={'traffic' : 'y', 'datetime' : 'ds'})
     
@@ -177,7 +178,7 @@ def evaluate_prophet_model(test_data, model_path, le_path):
     
     test_data_cp = test_data.copy()
     test_data_cp['detid'] = le.transform(test_data_cp['detid'])
-    test_data_cp = unfold_weekday_to_interval(test_data_cp)
+    test_data_cp = mf.unfold_weekday_to_interval(test_data_cp)
     test_data_cp = interval_to_datetime(test_data_cp, 'interval')
     test_data_cp = test_data_cp.rename(columns={'traffic': 'y', 'datetime': 'ds'})
     
@@ -237,7 +238,7 @@ def train_prophet_model_per_sensor(train_data, save_path):
     
     train_data_cp = train_data.copy()
 
-    train_data_cp = unfold_weekday_to_interval(train_data_cp)
+    train_data_cp = mf.unfold_weekday_to_interval(train_data_cp)
     train_data_cp = interval_to_datetime(train_data_cp, 'interval')
     train_data_cp = train_data_cp.rename(columns={'traffic' : 'y', 'datetime' : 'ds'})
     
@@ -318,7 +319,7 @@ def evaluate_prophet_models_per_sensor(test_data, save_path):
         model = joblib.load(model_path)
 
         sensor_data = test_data_cp[test_data_cp['detid'] == detid]
-        sensor_data = unfold_weekday_to_interval(sensor_data)
+        sensor_data = mf.unfold_weekday_to_interval(sensor_data)
         sensor_data = interval_to_datetime(sensor_data, 'interval')
         sensor_data = sensor_data.rename(columns={'traffic': 'y', 'datetime': 'ds'})
 
