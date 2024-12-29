@@ -1,17 +1,30 @@
 def unfold_weekday_to_interval(df):
     """
-    Adjusts the 'interval' column in the DataFrame by adding the number of seconds corresponding to the day of the week.
+    Convert weekday and interval columns into a single continuous interval column.
 
-    This function converts the 'weekday' column to a numerical representation (0 for Monday, 1 for Tuesday, etc.),
-    multiplies it by the number of seconds in a day (86400), and adds this value to the 'interval' column. The 'weekday'
-    column is then dropped from the DataFrame.
+    This function transforms the 'weekday' and 'interval' columns in a DataFrame into a single 
+    'interval' column representing the total number of seconds elapsed since the beginning 
+    of the week. The 'weekday' column is dropped after transformation.
 
     Parameters:
-    df (pandas.DataFrame): A DataFrame containing 'interval' and 'weekday' columns.
+        df (pd.DataFrame): A pandas DataFrame with the following columns:
+                           - 'weekday': Day of the week as a string (e.g., 'Monday', 'Tuesday', etc.).
+                           - 'interval': Time interval in seconds from the start of the day.
 
     Returns:
-    pandas.DataFrame: The modified DataFrame with the updated 'interval' column and without the 'weekday' column.
+        pd.DataFrame: A DataFrame with the transformed 'interval' column and the 'weekday' column removed.
+
+    Example:
+        Input DataFrame:
+            weekday    interval
+            Monday     3600
+            Tuesday    7200
+        Output DataFrame:
+            interval
+            3600
+            93599  # 7200 + (1 * 86400)
     """
+    
     weekday_to_num = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
     seconds_per_day = 86400
     df['interval'] = df.apply(lambda row: row['interval'] + (weekday_to_num[row['weekday']] * seconds_per_day), axis=1)
@@ -20,18 +33,30 @@ def unfold_weekday_to_interval(df):
 
 def filter_full_hours(df, interval_column='interval'):
     """
-    Filters the DataFrame to include only rows where the interval column represents full hour intervals.
-    This function adds a temporary column 'interval_in_hours' to the DataFrame, which is the interval column
-    divided by 3600 (to convert seconds to hours). It then filters the DataFrame to include only rows where
-    'interval_in_hours' is an integer (i.e., the interval is a full hour). The temporary column is dropped
-    before returning the filtered DataFrame.
-    
+    Filter rows where the interval corresponds to a full hour.
+
+    This function filters the DataFrame to include only rows where the specified interval 
+    represents a full hour (e.g., 0, 3600, 7200, etc.). Rows where the interval does not 
+    correspond to a full hour are excluded.
+
     Parameters:
-    df (pandas.DataFrame): The input DataFrame containing the interval data.
-    interval_column (str): The name of the column in the DataFrame that contains the interval data in seconds.
-                           Default is 'interval'.
+        df (pd.DataFrame): A pandas DataFrame containing the interval data.
+        interval_column (str, optional): The name of the column containing interval values (in seconds). Defaults to 'interval'.
+
     Returns:
-    pandas.DataFrame: A new DataFrame containing only the rows where the interval is a full hour.
+        pd.DataFrame: A filtered DataFrame containing only rows where the interval corresponds to a full hour.
+
+    Example:
+        Input DataFrame:
+            interval  value
+            3600      10
+            4500      15
+            7200      20
+
+        Output DataFrame:
+            interval  value
+            3600      10
+            7200      20
     """
     
     df['interval_in_hours'] = df[interval_column] / 3600
