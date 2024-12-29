@@ -8,26 +8,22 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
 import re
 
-def unfold_weekday_to_interval(df):
+def onehot_encode_categorical(df, column_name):
     """
-    Adjusts the 'interval' column in the DataFrame by adding the number of seconds corresponding to the day of the week.
+    Perform one-hot encoding on a categorical column in a DataFrame.
 
-    This function converts the 'weekday' column to a numerical representation (0 for Monday, 1 for Tuesday, etc.),
-    multiplies it by the number of seconds in a day (86400), and adds this value to the 'interval' column. The 'weekday'
-    column is then dropped from the DataFrame.
+    This function applies one-hot encoding to a specified column in the DataFrame, 
+    adding new binary columns for each unique category in the original column. 
+    The original column is dropped after encoding.
 
     Parameters:
-    df (pandas.DataFrame): A DataFrame containing 'interval' and 'weekday' columns.
+        df (pd.DataFrame): A pandas DataFrame containing the column to encode.
+        column_name (str): The name of the column to one-hot encode.
 
-    Returns:a
-    pandas.DataFrame: The modified DataFrame with the updated 'interval' column and without the 'weekday' column.
+    Returns:
+        pd.DataFrame: A DataFrame with one-hot encoded columns added and the original column removed.
     """
-    weekday_to_num = {'Monday': 0, 'Tuesday': 1, 'Wednesday': 2, 'Thursday': 3, 'Friday': 4, 'Saturday': 5, 'Sunday': 6}
-    seconds_per_day = 86400
-    df['interval'] = df.apply(lambda row: row['interval'] + (weekday_to_num[row['weekday']] * seconds_per_day), axis=1)
-    return df
-
-def onehot_encode_categorical(df, column_name):
+    
     encoder = OneHotEncoder(sparse_output=False)
     column_encoded = encoder.fit_transform(df[[column_name]])
 
@@ -41,6 +37,23 @@ def onehot_encode_categorical(df, column_name):
 
 
 def label_encode_categorical(df, column_name):
+    """
+    Perform label encoding on a categorical column in a DataFrame.
+
+    This function applies label encoding to a specified column in the DataFrame, 
+    converting each unique category into a corresponding integer value.
+
+    Parameters:
+        df (pd.DataFrame): A pandas DataFrame containing the column to encode.
+        column_name (str): The name of the column to label encode.
+
+    Returns:
+        tuple: A tuple containing:
+            - pd.DataFrame: A new DataFrame with the specified column label-encoded.
+            - LabelEncoder: The `LabelEncoder` instance used for the transformation, 
+                            which can be used to reverse the encoding or transform other datasets.
+    """
+    
     df_cp = df.copy()
     label_encoder = LabelEncoder()
     df_cp[column_name] = label_encoder.fit_transform(df_cp[column_name])
@@ -48,6 +61,21 @@ def label_encode_categorical(df, column_name):
 
 
 def interval_to_datetime(df, interval_column_name):
+    """
+    Convert an interval column (in seconds) to a datetime column.
+
+    This function converts a column of intervals (representing seconds since a reference point) 
+    into a corresponding datetime column. The intervals are added to a reference datetime 
+    (default: Monday, May 18, 2015, midnight).
+
+    Parameters:
+        df (pd.DataFrame): A pandas DataFrame containing the interval column.
+        interval_column_name (str): The name of the column containing interval values in seconds.
+
+    Returns:
+        pd.DataFrame: A new DataFrame with the converted datetime column added and the original interval column removed.
+    """
+    
     df_cp = df.copy()
     monday_midnight = datetime(2015, 5, 18)
     df_cp['datetime'] = df_cp[interval_column_name].apply(lambda x: monday_midnight + timedelta(seconds=x))
@@ -57,6 +85,35 @@ def interval_to_datetime(df, interval_column_name):
 
 
 def train_prophet_model(train_data, save_path):
+    """
+    Train and save a Prophet model for traffic prediction with sensor data.
+
+    This function trains a Prophet model using time-series data and a regressor for the sensor ID. 
+    The trained model and the label encoder for sensor IDs are saved to the specified directory.
+
+    Parameters:
+        train_data (pd.DataFrame): A pandas DataFrame containing the training data.
+                                   It must include the following columns:
+                                   - 'detid': Sensor identifier (categorical).
+                                   - 'weekday': Day of the week as strings (e.g., 'Monday', 'Tuesday', etc.).
+                                   - 'interval': Time interval in seconds from the start of the week.
+                                   - 'traffic': Traffic values (numerical).
+        save_path (str): The directory path where the trained model and label encoder will be saved.
+
+    Process:
+        1. Creates a copy of the training data to avoid modifying the original.
+        2. Encodes the 'detid' column using `label_encode_categorical` to convert sensor IDs into integers.
+        3. Converts 'weekday' and 'interval' into a continuous datetime column using `unfold_weekday_to_interval` and `interval_to_datetime`.
+        4. Renames the traffic column to 'y' and the datetime column to 'ds' as required by Prophet.
+        5. Initializes a Prophet model with a specified changepoint prior scale.
+        6. Adds the encoded sensor ID ('detid') as a regressor to the Prophet model.
+        7. Fits the model to the transformed training data.
+        8. Saves the trained model and the label encoder to the specified paths.
+
+    Returns:
+        None: The function saves the trained Prophet model and label encoder to the specified directory.
+    """
+    
     train_data_cp = train_data.copy()
     train_data_enc, le = label_encode_categorical(train_data_cp, 'detid')
     train_data_enc = unfold_weekday_to_interval(train_data_enc)
@@ -78,15 +135,41 @@ def train_prophet_model(train_data, save_path):
     
 def evaluate_prophet_model(test_data, model_path, le_path):
     """
-    Evaluates the performance of the trained Prophet model using MAE, MSE, and R² metrics.
-    
+    Evaluate a trained Prophet model on test data.
+
+    This function evaluates a pre-trained Prophet model by comparing predicted traffic values 
+    against actual traffic values in the test data. It calculates evaluation metrics such as 
+    Mean Absolute Error (MAE), Mean Squared Error (MSE), and R-squared (R²).
+
     Parameters:
-    test_data (pandas.DataFrame): The test dataset with 'interval', 'weekday', 'detid', and 'traffic' columns.
-    model_path (str): Path to the saved Prophet model.
-    le_path (str): Path to the saved LabelEncoder for the 'detid' column.
+        test_data (pd.DataFrame): A pandas DataFrame containing the test data.
+                                  It must include the following columns:
+                                  - 'detid': Sensor identifier (categorical).
+                                  - 'weekday': Day of the week as strings (e.g., 'Monday', 'Tuesday', etc.).
+                                  - 'interval': Time interval in seconds from the start of the week.
+                                  - 'traffic': Actual traffic values (numerical).
+        model_path (str): The file path to the trained Prophet model saved as a `.pkl` file.
+        le_path (str): The file path to the saved `LabelEncoder` for the 'detid' column.
 
     Returns:
-    dict: A dictionary containing the MAE, MSE, and R² score of the model.
+        tuple: A tuple containing:
+            - pd.DataFrame: A DataFrame with evaluation metrics (MAE, MSE, R² Score).
+            - np.ndarray: The actual traffic values (`y_true`).
+            - np.ndarray: The predicted traffic values (`y_pred`).
+            - pd.DataFrame: The full forecast generated by the Prophet model.
+
+    Process:
+        1. Loads the trained Prophet model and the label encoder using `joblib.load`.
+        2. Copies the test data to avoid modifying the original.
+        3. Encodes the 'detid' column in the test data using the loaded label encoder.
+        4. Converts 'weekday' and 'interval' into a continuous datetime column using 
+           `unfold_weekday_to_interval` and `interval_to_datetime`.
+        5. Renames the traffic column to 'y' and the datetime column to 'ds' as required by Prophet.
+        6. Prepares the future dataframe with 'ds' (datetime) and 'detid' (encoded sensor ID) columns.
+        7. Predicts traffic values using the Prophet model.
+        8. Calculates evaluation metrics (MAE, MSE, R² Score) by comparing actual (`y_true`) and 
+           predicted (`y_pred`) traffic values.
+        9. Returns the evaluation metrics, actual and predicted values, and the full forecast.
     """
 
     model = joblib.load(model_path)
@@ -118,6 +201,40 @@ def evaluate_prophet_model(test_data, model_path, le_path):
     
     
 def train_prophet_model_per_sensor(train_data, save_path):
+    """
+    Train and save a separate Prophet model for each sensor in the data.
+
+    This function trains a Prophet model for each unique sensor (`detid`) in the training data. 
+    Each model is trained on the time-series data for that specific sensor, and all models 
+    are saved to the specified directory.
+
+    Parameters:
+        train_data (pd.DataFrame): A pandas DataFrame containing the training data.
+                                   It must include the following columns:
+                                   - 'detid': Sensor identifier (categorical).
+                                   - 'weekday': Day of the week as strings (e.g., 'Monday', 'Tuesday', etc.).
+                                   - 'interval': Time interval in seconds from the start of the week.
+                                   - 'traffic': Traffic values (numerical).
+        save_path (str): The directory path where the trained models will be saved.
+
+    Process:
+        1. Copies the input training data to avoid modifying the original.
+        2. Converts 'weekday' and 'interval' into a continuous datetime column using 
+           `unfold_weekday_to_interval` and `interval_to_datetime`.
+        3. Renames the traffic column to 'y' and the datetime column to 'ds' as required by Prophet.
+        4. Iterates through each unique sensor ID (`detid`):
+            a. Filters the data for the specific sensor.
+            b. Initializes a Prophet model with specified hyperparameters:
+               - `changepoint_prior_scale=0.5`: Regularization for changepoints.
+               - `n_changepoints=50`: Number of changepoints to allow.
+            c. Fits the model to the time-series data for the sensor.
+            d. Saves the trained model to `save_path` with the sensor ID in the file name.
+        5. Prints progress every 100 sensors to monitor training status.
+
+    Returns:
+        None: The function saves the trained Prophet models to the specified directory.
+    """
+    
     train_data_cp = train_data.copy()
 
     train_data_cp = unfold_weekday_to_interval(train_data_cp)
@@ -145,17 +262,47 @@ def train_prophet_model_per_sensor(train_data, save_path):
         
 def evaluate_prophet_models_per_sensor(test_data, save_path):
     """
-    Evaluates the performance of multiple Prophet models trained for each sensor.
+    Evaluate Prophet models for each sensor in the dataset.
+
+    This function evaluates the performance of individual Prophet models trained for each unique sensor (`detid`) 
+    by comparing the model's predictions with the actual traffic values in the test data. 
+    It computes the following metrics for each sensor:
+    - Mean Absolute Error (MAE)
+    - Mean Squared Error (MSE)
+    - R-squared (R²)
 
     Parameters:
-    test_data (pandas.DataFrame): The test dataset with 'interval', 'weekday', 'detid', and 'traffic' columns.
-    save_path (str): Path to the folder containing saved Prophet models and label encoders, 
-                     with filenames formatted as 'prophet_model_<sensor_id>.pkl' and 
-                     'prophet_label_encoder_<sensor_id>.pkl'.
+        test_data (pd.DataFrame): A pandas DataFrame containing the test data.
+                                  It must include the following columns:
+                                  - 'detid': Sensor identifier (categorical).
+                                  - 'weekday': Day of the week as strings (e.g., 'Monday', 'Tuesday', etc.).
+                                  - 'interval': Time interval in seconds from the start of the week.
+                                  - 'traffic': Actual traffic values (numerical).
+        save_path (str): The directory path where the trained Prophet models are saved. 
+                         Each model should be named in the format `prophet_<sensor_id>.pkl`.
 
     Returns:
-    dict: A dictionary containing the MAE, MSE, and R² score of all sensors.
+        pd.DataFrame: A DataFrame containing evaluation metrics for each sensor, with columns:
+                      - 'detid': Sensor identifier.
+                      - 'MAE': Mean Absolute Error.
+                      - 'MSE': Mean Squared Error.
+                      - 'R2': R-squared score.
+
+    Process:
+        1. Creates a copy of the test data to avoid modifying the original.
+        2. Iterates through each unique sensor ID (`detid`):
+            a. Loads the trained Prophet model for the sensor from `save_path`.
+            b. Filters the test data for the specific sensor.
+            c. Converts 'weekday' and 'interval' into a datetime column using 
+               `unfold_weekday_to_interval` and `interval_to_datetime`.
+            d. Renames columns to 'ds' (datetime) and 'y' (actual traffic) as required by Prophet.
+            e. Prepares the 'future' DataFrame with the 'ds' column for predictions.
+            f. Predicts traffic values using the loaded Prophet model.
+            g. Computes MAE, MSE, and R² between the actual and predicted traffic values.
+            h. Appends the metrics and sensor ID to the results dictionary.
+        3. Converts the results dictionary into a DataFrame.
     """
+    
     test_data_cp = test_data.copy()
     metrics = {
         'detid' : [],
@@ -194,6 +341,38 @@ def evaluate_prophet_models_per_sensor(test_data, save_path):
 
 
 def get_prediction_per_sensor(model_folder_path, weekday):
+    """
+    Generate traffic predictions for a specified weekday using Prophet models for each sensor.
+
+    This function uses pre-trained Prophet models to predict traffic values for each hour 
+    of a given weekday. The results are combined into a single DataFrame containing predictions 
+    for all sensors.
+
+    Parameters:
+        model_folder_path (str): The directory path containing Prophet models for each sensor.
+                                 Models should be named in the format `prophet_<sensor_id>.pkl`.
+        weekday (int): The numerical representation of the weekday (0=Monday, ..., 6=Sunday).
+
+    Returns:
+        pd.DataFrame: A DataFrame containing traffic predictions for the specified weekday, with columns:
+                      - 'detid': Sensor identifier.
+                      - 'ds': Datetime of the prediction.
+                      - 'traffic': Predicted traffic values (yhat).
+                      - 'yhat_lower': Lower bound of the prediction interval.
+                      - 'yhat_upper': Upper bound of the prediction interval.
+
+    Process:
+        1. Creates a DataFrame with hourly intervals (168 hours for a week) and maps intervals to weekdays.
+        2. Filters the DataFrame to include only the specified weekday.
+        3. Converts interval values into datetime using `interval_to_datetime`.
+        4. Iterates through all Prophet model files in `model_folder_path`:
+            a. Loads the model using `joblib.load`.
+            b. Extracts the sensor ID (`detid`) from the filename using a regex pattern.
+            c. Predicts traffic values for the filtered hourly intervals.
+            d. Appends the predictions to a results list.
+        5. Combines predictions from all sensors into a single DataFrame.
+        6. Renames the main prediction column (`yhat`) to 'traffic' and retains prediction intervals.
+    """
 
     regex_pattern = r"prophet_(.*?)\.pkl"
     get_data = pd.DataFrame({'ds': [i * 3600 for i in range(168)]})        
@@ -218,7 +397,6 @@ def get_prediction_per_sensor(model_folder_path, weekday):
         forecast = model.predict(future)
         forecast['detid'] = detid
         forecasts.append(forecast[['detid', 'ds', 'yhat', 'yhat_lower', 'yhat_upper']])
-        
         
     forecasts_df = pd.concat(forecasts, ignore_index=True)
     forecasts_df = forecasts_df.rename(columns={'yhat' : 'traffic'})
