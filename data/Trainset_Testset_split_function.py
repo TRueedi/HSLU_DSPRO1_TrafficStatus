@@ -45,7 +45,6 @@ def spliter(splitting_method, df):
     
     return train_set, test_set
 
-# Get user input
 path_from, path_to, number_of_splits, splitting_method = get_user_input()
 
 print("Loading data from: ", path_from)
