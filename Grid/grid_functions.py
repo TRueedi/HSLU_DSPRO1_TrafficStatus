@@ -310,9 +310,9 @@ def get_weekday_prediction(weekday, model=['random', 'knn', 'rfr','prophet']):
     df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
     
     if model == 'random':
-        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\baseline", weekday)
+        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\baseline_day_1", weekday)
     elif model == 'knn':
-        df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn04", weekday)
+        df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\KNN_day_1", weekday)
     elif model == 'rfr':
         df_weekday = get_rfr_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\rfr_day_1", weekday)
     elif model == 'prophet':
