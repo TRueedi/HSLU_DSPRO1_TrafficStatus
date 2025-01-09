@@ -1,128 +1,16 @@
-from sklearn.neighbors import KNeighborsRegressor
-from sklearn.model_selection import GridSearchCV
-import joblib
+import sys
 import os
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pandas as pd
 import numpy as np
 import branca.colormap as cm 
 import folium
-import geopandas
 from datetime import datetime, timedelta
-from prophet import Prophet
-
-# Get Prediction Functions
-def get_random_baseline_prediction(models_path, weekday, interval_values=
-                                   [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]):
-    
-    X_values = pd.DataFrame(interval_values, columns=['interval'])
-    X_values['weekday'] = weekday
-    
-    predictions = []
-    
-    for model_filename in os.listdir(models_path):
-        if '_baseline' in model_filename:
-            model_path = os.path.join(models_path, model_filename)
-            sensor_baseline = joblib.load(model_path)
-            
-            # Generate random traffic values within the saved range
-            y_pred = np.random.uniform(sensor_baseline['min'], sensor_baseline['max'], len(X_values))
-            
-            predictions.append(pd.DataFrame({
-                'traffic': y_pred,
-                'detid': model_filename.replace('_baseline', '').replace('-', '/'),
-                'interval': X_values['interval']
-            }))
-    
-    return pd.concat(predictions)
-
-
-def get_knn_prediction(models_path, weekday, interval_values=[
-               0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 
-               36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 
-               68400, 72000, 75600, 79200, 82800]):
-    
-    X_values = pd.DataFrame(interval_values, columns=['interval'])
-    X_values['weekday'] = weekday
-    
-    predictions = []
-    
-    for model_filename in os.listdir(models_path):
-        model_path = os.path.join(models_path, model_filename)
-        if os.path.isfile(model_path):
-            # Load the KNN model
-            sensor_model = joblib.load(model_path)
-            y_pred = sensor_model.predict(X_values)
-            
-            # Store predictions in DataFrame format
-            predictions.append(pd.DataFrame({
-                'traffic': y_pred,
-                'detid': model_filename.replace('-', '/').replace('.pkl', ''),
-                'interval': X_values['interval'],
-            }))
-        
-    return pd.concat(predictions)
-
-def get_rfr_prediction(models_path, weekday, interval_values=
-               [0, 3600, 7200,10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000, 39600, 43200, 46800, 50400, 54000, 57600, 61200, 64800, 68400, 72000, 75600, 79200, 82800]):
-    
-    X_values = pd.DataFrame(interval_values, columns=['interval'])
-    X_values['weekday'] = weekday
-    
-    predictions = []
-    
-    for model_filename in os.listdir(models_path):
-        model_path = os.path.join(models_path, model_filename)
-        if os.path.isfile(model_path):
-            sensor_model = joblib.load(model_path)
-            y_pred = sensor_model.predict(X_values)
-            
-            predictions.append(pd.DataFrame({
-            'traffic': y_pred,
-            'detid': model_filename.replace('-', '/'),
-            'interval': X_values['interval'],
-        }))
-        
-    return pd.concat(predictions)
-
-def interval_to_datetime(df, interval_column_name):
-    df_cp = df.copy()
-    monday_midnight = datetime(2015, 5, 18)
-    df_cp['datetime'] = df_cp[interval_column_name].apply(lambda x: monday_midnight + timedelta(seconds=x))
-    df_cp = df_cp.drop(interval_column_name, axis=1)
-    return df_cp
-
-def get_prediction_per_sensor(model_folder_path, weekday):
-
-    regex_pattern = r"prophet_(.*?)\.pkl"
-    get_data = pd.DataFrame({'ds': [i * 3600 for i in range(168)]})        
-    get_data['weekday'] = (get_data['ds'] // (3600 * 24)) 
-    get_data_weekday = get_data[get_data['weekday'] == weekday]
-    get_data_weekday = interval_to_datetime(get_data_weekday, 'ds')
-    get_data_weekday = get_data_weekday.rename(columns={'datetime' : 'ds'})
-    
-    forecasts = []
-
-    for model_filename in os.listdir(model_folder_path):
-        model_path = os.path.join(model_folder_path, model_filename)
-        
-        if not os.path.isfile(model_path):  
-            print(f'{model_path} is not a file.')
-            continue
-        
-        model = joblib.load(model_path)
-        detid = re.findall(regex_pattern, model_filename)[0].replace('-', '/')
-        
-        future = get_data_weekday[['ds']]
-        forecast = model.predict(future)
-        forecast['detid'] = detid
-        forecasts.append(forecast[['detid', 'ds', 'yhat', 'yhat_lower', 'yhat_upper']])
-        
-        
-    forecasts_df = pd.concat(forecasts, ignore_index=True)
-    forecasts_df = forecasts_df.rename(columns={'yhat' : 'traffic'})
-    return forecasts_df
-
+from model import baseline_model as bm
+from model import knn_model as knn
+from model import prophet_model as pm
+from model import rfr_model as rfr
 
 #Functions for Grids
 def grid(df, sensorid_col, trafficIndex_col, shape=0.01):
@@ -310,18 +198,17 @@ def get_weekday_prediction(weekday, model=['random', 'knn', 'rfr','prophet']):
     df_sensors = pd.read_csv(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\HSLU_DSPRO1_TrafficStatus\data\RawDataLondon\London_detectors.csv")
     
     if model == 'random':
-        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\baseline_day_1", weekday)
+        df_weekday = bm.get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\baseline_day_1", weekday)
     elif model == 'knn':
-        df_weekday = get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\KNN_day_1", weekday)
+        df_weekday = knn.get_knn_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\KNN_day_1", weekday)
     elif model == 'rfr':
-        df_weekday = get_rfr_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\rfr_day_1", weekday)
+        df_weekday = rfr.get_rfr_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\rfr_day_1", weekday)
     elif model == 'prophet':
-        df_weekday = get_prediction_per_sensor(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\prophet_day_1", weekday)
+        df_weekday = pm.get_prediction_per_sensor(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\DaySplit\prophet_day_1", weekday)
     
     df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
     
     return df_weekday_with_coords
-
 
 
 def get_hour_prediction(df, interval_value, mode, shape=0.01):
@@ -368,7 +255,7 @@ def saving_baseline_grids():
     
     
     for x in range(7):
-        df_weekday = get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn", x)
+        df_weekday = bm.get_random_baseline_prediction(r"C:\Users\rueed\OneDrive\HSLU\3 Semester\DSPRO 1\data\knn", x)
         df_weekday_with_coords = pd.merge(df_weekday, df_sensors, on='detid', how='left')
 
         for y in interval_values:
