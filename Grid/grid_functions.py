@@ -103,25 +103,13 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
     # Create a Folium map centered around London
     m = folium.Map(location=city_center, zoom_start=zoom_start)
 
-    # Create a color map that interpolates between green (low) and red (high)
-    #colormap = cm.LinearColormap(colors=['green', 'yellow', 'red'], 
-    #                             vmin=grid['mean_trafficIndex'].min(), 
-    #                             vmax=grid['mean_trafficIndex'].max(),
-    #                             caption='Mean Traffic Index')
-    
+    # Create a color map that interpolates between green (low) and red (high)  
     colormap = cm.LinearColormap(
         colors=['green', 'yellow', 'red'],
         vmin=0,
         vmax=99,
         caption='Mean Traffic Index'
     )
-    
-    #colormap = cm.StepColormap(
-    #    colors=['green', 'yellow', 'red'],  # Farben: grün -> gelb -> rot
-    #    index=[grid['mean_trafficIndex'].min(), 25, 50, grid['mean_trafficIndex'].max()],
-    #    vmin=grid['mean_trafficIndex'].min(),
-    #    vmax=grid['mean_trafficIndex'].max(),
-    #    caption='Mean Traffic Index')
         
     
     m.add_child(colormap)  # Add the colormap to the map
@@ -175,7 +163,7 @@ def plot_grid_with_shapes(grid, shape='circle', city_center=(51.5074, -0.1278), 
                 color=color,
                 fill=True,
                 fill_opacity=0.6,
-                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}<br>Sensors in Grid: {row['sensors_in_grid']}"
+                popup=f"Grid ID: {row['grid_id']}<br>Mean Traffic Index: {row['mean_trafficIndex']}<br>Sensors in Grid: {row['sensors_in_grid']}",
             ).add_to(m)
 
     return m

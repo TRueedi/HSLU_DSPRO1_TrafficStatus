@@ -3,6 +3,12 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import pandas as pd
 import grid_functions  # Importiere die Funktionen aus grid_functions.py
+from flask_caching import Cache
+import logging
+
+# Konfigurieren Sie das Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 # Funktion zum Plotten des Grids
 def plot_grid(df_weekday, hour, mode, center, zoom):
@@ -29,6 +35,26 @@ def map_to_html(map_object):
 
 # Dash App
 app = dash.Dash(__name__)
+server = app.server
+
+# Konfigurieren Sie das Caching
+cache = Cache(app.server, config={
+    'CACHE_TYPE': 'simple',
+    'CACHE_DEFAULT_TIMEOUT': 300
+})
+
+# Funktion zum Caching der Modellvorhersagen
+def precompute_predictions():
+    models = ['random', 'knn', 'rfr', 'prophet']
+    weekdays = range(7)
+    for model in models:
+        for weekday in weekdays:
+            cache_key = f"{model}_{weekday}"
+            if not cache.get(cache_key):
+                logging.info(f"Caching {model} model for weekday {weekday}")
+                df_weekday = grid_functions.get_weekday_prediction(weekday, model)
+                cache.set(cache_key, df_weekday.to_json(date_format='iso', orient='split'))
+                logging.info(f"Cached {model} model for weekday {weekday}")
 
 app.layout = html.Div([
     dcc.Store(id='map-center', data={'lat': 51.480, 'lng': -0.081}),  # Speichert die Kartenmitte
@@ -91,27 +117,34 @@ app.layout = html.Div([
                 value=12,
                 marks={i: f'{i}:00' for i in range(25)},
                 updatemode='drag',
-                tooltip={"placement": "bottom", "always_visible": True},
+                tooltip={"placement": "bottom", "always_visible": True}
             ),
         ], style={'margin-top': '10px', 'width': '100%', 'color': 'white'}),
     ], style={'position': 'fixed', 'bottom': '0', 'left': '0', 'right': '0', 'width': '100%', 'background-color': 'rgba(0, 0, 0, 0.5)', 'padding': '10px', 'z-index': '1000', 'box-shadow': '0px 0px 10px rgba(0,0,0,0.1)', 'display': 'flex', 'flex-direction': 'column', 'align-items': 'center'})
 ], style={'position': 'relative', 'height': '100vh', 'width': '100vw'})
 
+@cache.memoize()
 @app.callback(
     Output('weekday-data', 'children'),
     Input('weekday-radio', 'value'),
     Input('model-radio', 'value')
 )
 def update_weekday_data(weekday, model):
+    cache_key = f"{model}_{weekday}"
+    cached_data = cache.get(cache_key)
+    if cached_data:
+        return cached_data
     df_weekday = grid_functions.get_weekday_prediction(weekday, model)
+    cache.set(cache_key, df_weekday.to_json(date_format='iso', orient='split'))
     return df_weekday.to_json(date_format='iso', orient='split')
+
 
 @app.callback(
     Output('map', 'children'),
     [Input('hour-slider', 'value'),
      Input('weekday-data', 'children'),
-     Input('mode-radio', 'value'),
-     State('map-center', 'data'),
+     Input('mode-radio', 'value')],
+    [State('map-center', 'data'),
      State('map-zoom', 'data')]
 )
 def update_map(hour, weekday_data, mode, center, zoom):
@@ -122,5 +155,7 @@ def update_map(hour, weekday_data, mode, center, zoom):
         return html.Iframe(srcDoc=map_html, width='100%', height='100%')
     return None
 
+# Export the app
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    #precompute_predictions() # Prechaching
+    app.run_server(debug=False)

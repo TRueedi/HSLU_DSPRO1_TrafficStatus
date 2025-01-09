@@ -8,3 +8,4 @@ folium == 0.14.0
 joblib==1.4.2
 scikit-learn==1.5.2
 prophet==1.1.6
+flask-caching==2.3.0
