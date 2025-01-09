@@ -400,6 +400,7 @@ def get_prediction_per_sensor(model_folder_path, weekday):
         forecasts.append(forecast[['detid', 'ds', 'yhat', 'yhat_lower', 'yhat_upper']])
         
     forecasts_df = pd.concat(forecasts, ignore_index=True)
-    forecasts_df = forecasts_df.rename(columns={'yhat' : 'traffic'})
+    forecasts_df = forecasts_df.rename(columns={'yhat' : 'traffic', 'ds': 'interval'})
+    forecasts_df['interval'] = forecasts_df['interval'].dt.hour * 3600
     return forecasts_df
        
