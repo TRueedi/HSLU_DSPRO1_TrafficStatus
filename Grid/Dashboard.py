@@ -3,15 +3,12 @@ from dash import dcc, html
 from dash.dependencies import Input, Output, State
 import pandas as pd
 import grid_functions  # Importiere die Funktionen aus grid_functions.py
-import folium
-import base64
-from io import BytesIO
 
 # Funktion zum Plotten des Grids
 def plot_grid(df_weekday, hour, mode, center, zoom):
     interval_value = hour * 3600  # Umrechnung von Stunden in Sekunden
     
-    if mode == 'sensors':
+    if mode == 'detectors':
         map_object = grid_functions.plot_sensors_as_points(city_center=center, zoom_start=zoom)
     elif mode == 'traffic':
         grid_data = grid_functions.get_hour_prediction(df_weekday, interval_value, mode, shape=0.01)
