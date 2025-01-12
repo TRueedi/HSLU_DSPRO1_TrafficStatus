@@ -12,13 +12,19 @@ We want to create a heat map of London to show people which areas to avoid at ce
 Therefore we use a dataset called UTD19 (https://utd19.ethz.ch/) and extract the necessary sensor data for the city of London. With the data we compute a regression and make a prediction. 
 We then visualize the obtained information with a grid over London.
 
-# Dashboard
-The following steps are required to use the dashboard itself
-First, the Github repository must be cloned.
-Then the zip file dataset_version1.0_22.11.2024 must be downloaded and unpacked under data/ dataset_V1.0/. The path to the contained files must be adjusted accordingly under grid/grid_functions.py in the following functions.
+## Dashboard
+To use the dashboard itself, the following steps are required
+First, clone the Github repository.
+Then download the zip file dataset_version1.0_22.11.2024 and unzip it under data/ dataset_V1.0/. Change the path to the files it contains in grid/grid_functions.py in the following functions.
 - get_weekday_prediction
 - plot_detections_as_points
 
-The required package should then be installed with the requirements.txt file. It should then be possible to start the dashboard.
-The start takes about 45 minutes, as all models are first queried and the results are written to a cashe to ensure smooth use of the dashboard later.
-If this is not desired, line 168 in Dashboard.py can be changed as a comment, then the dashboard is started without prior cashing.
+The required package should then be installed using the requirements.txt file. You should then be able to start the dashboard.
+At the moment the prechached prediction is loaded, if new ones are needed, please delete the files in /grid/chache-directory. New ones will then be created when the application starts, but please note that this will take about 45 minutes.
+
+### Example
+Once launched, the Dashboard can be accessed via http://127.0.0.1:8050/.
+Here you can choose between the different models, the default being our KNN model.
+You can also select the mode, the day of the week and the time of day for your preferred forecast.
+
+![Demo_Dashboard](src\image.png)
