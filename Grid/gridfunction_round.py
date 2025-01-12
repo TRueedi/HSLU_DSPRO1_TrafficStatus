@@ -1,3 +1,5 @@
+# This Python Script was developed to help in the data cleaning process to plot the current used detectors
+
 # !pip install branca
 # !pip install folium geopandas
 
