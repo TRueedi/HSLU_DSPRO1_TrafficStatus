@@ -249,7 +249,7 @@ def train_prophet_model_per_sensor(train_data, save_path):
         
         sensor_data = train_data_cp[train_data_cp['detid'] == detid]
         
-        model = Prophet(changepoint_prior_scale=0.5, n_changepoints=50)
+        model = Prophet(changepoint_prior_scale=0.5)
         model.fit(sensor_data[['ds', 'y']])
         
         detid_string = detid.replace('/', '-')

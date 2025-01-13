@@ -23,13 +23,13 @@ def get_user_input():
         - pathDetectors (str): The path to the file from which the detectors data is loaded.
         - pathTo (str): The path to where the file should be saved.
     """
-    #pathFrom = input("Enter the path to the file from which the data is loaded: ")
-    #pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
-    #pathTo = input("Enter the path to where the file should be saved is saved: ")
+    pathFrom = input("Enter the path to the file from which the data is loaded: ")
+    pathDetectors = input("Enter the path to the file from which the detectors data is loaded: ")
+    pathTo = input("Enter the path to where the file should be saved is saved: ")
     #Only for testing
-    pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London\London_UTD19.csv"
-    pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London\London_detectors.csv"
-    pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
+    #pathFrom = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London\London_UTD19.csv"
+    #pathDetectors = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data\London\London_detectors.csv"
+    #pathTo = r"C:\Users\samue\OneDrive\AIML\HS2024\Data Sicence Projekt\Data"
     return pathFrom, pathTo, pathDetectors
 
 def export_modified_dataset(df, path):
