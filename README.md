@@ -2,9 +2,9 @@
 HSLU Data Science Project 1 for Traffic Status
 
 ## Memebers
-Finn Eyer 
-Samuel Paul
-Tobias Rüedi
+Finn Eyer </br>
+Samuel Paul </br>
+Tobias Rüedi </br>
 
 ## Disclaimer
 Most Jupyter notebooks are not executable due to file or library imports. For testing, please run our Python scripts like create_dataset.py test_train_split_function.py
