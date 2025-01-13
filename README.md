@@ -1,11 +1,14 @@
 # HSLU_DSPRO1_TrafficStatus
 HSLU Data Science Project 1 for Traffic Status
 
-
 ## Memebers
 Finn Eyer 
 Samuel Paul
 Tobias Rüedi
+
+## Disclaimer
+Most Jupyter notebooks are not executable due to file or library imports. For testing, please run our Python scripts like create_dataset.py test_train_split_function.py
+Our scientific report, Traffic Status, includes a detailed description of why this happens.
 
 ## Description
 We want to create a heat map of London to show people which areas to avoid at certain times. We also want to provide a pathfinder that shows the user the best route to take.
@@ -27,9 +30,5 @@ Once launched, the Dashboard can be accessed via http://127.0.0.1:8050/.
 Here you can choose between the different models, the default being our KNN model.
 You can also select the mode, the day of the week and the time of day for your preferred forecast.
 
-![Demo_Dashboard](src\image.png)
-
-## Disclaimer
-Most Jupyter notebooks are not executable due to file or library imports. For testing, please run our Python scripts like create_dataset.py test_train_split_function.py
-Our scientific report, Traffic Status, includes a detailed description of why this happens.
+![Demo_Dashboard](src/image.png)
 
