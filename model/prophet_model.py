@@ -7,7 +7,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
 import re
-from model import model_functions as mf
+import model_functions as mf
 
 def onehot_encode_categorical(df, column_name):
     """
@@ -249,7 +249,7 @@ def train_prophet_model_per_sensor(train_data, save_path):
         
         sensor_data = train_data_cp[train_data_cp['detid'] == detid]
         
-        model = Prophet(changepoint_prior_scale=0.5, n_changepoints=50)
+        model = Prophet(changepoint_prior_scale=0.5)
         model.fit(sensor_data[['ds', 'y']])
         
         detid_string = detid.replace('/', '-')
