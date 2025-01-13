@@ -20,7 +20,7 @@ To use the dashboard itself, the following steps are required
 First, clone the Github repository.
 Then download the zip file dataset_version1.0_22.11.2024 and unzip it under data/ dataset_V1.0/. Change the path to the files it contains in grid/grid_functions.py in the following functions.
 - get_weekday_prediction
-- plot_detections_as_points
+- plot_detectors_as_points
 
 The required package should then be installed using the requirements.txt file. You should then be able to start the dashboard.
 At the moment the prechached prediction is loaded, if new ones are needed, please delete the files in /grid/chache-directory. New ones will then be created when the application starts, but please note that this will take about 45 minutes.
