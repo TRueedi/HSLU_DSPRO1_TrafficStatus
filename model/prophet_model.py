@@ -7,7 +7,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import os
 import re
-from model import model_functions as mf
+import model_functions as mf
 
 def onehot_encode_categorical(df, column_name):
     """
